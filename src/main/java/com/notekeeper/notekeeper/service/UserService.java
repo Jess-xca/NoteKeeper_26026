@@ -235,7 +235,7 @@ public class UserService {
         return userRepository.findAll(PageRequest.of(page, size));
     }
 
-    public org.springframework.data.domain.Page<UserDTO> getUsersPaginatedDTO(int page, int size) {
+    public Page<UserDTO> getUsersPaginatedDTO(int page, int size) {
         return getUsersPaginated(page, size).map(dtoMapper::toUserDTO);
     }
 

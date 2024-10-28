@@ -198,4 +198,35 @@ public class LocationController {
                     HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @GetMapping("/paginated")
+    public ResponseEntity<?> getLocationsPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            org.springframework.data.domain.Page<Location> locations = locationService.getLocationsPaginated(page,
+                    size);
+            org.springframework.data.domain.Page<LocationDTO> locationDTOs = locations.map(dtoMapper::toLocationDTO);
+            return ResponseEntity.ok(locationDTOs);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch paginated locations: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/type/{type}/paginated")
+    public ResponseEntity<?> getLocationsByTypePaginated(
+            @PathVariable LocationType type,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            org.springframework.data.domain.Page<Location> locations = locationService.getLocationsByTypePaginated(type,
+                    page, size);
+            org.springframework.data.domain.Page<LocationDTO> locationDTOs = locations.map(dtoMapper::toLocationDTO);
+            return ResponseEntity.ok(locationDTOs);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch paginated locations by type: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }
