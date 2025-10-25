@@ -1,7 +1,7 @@
 package com.notekeeper.notekeeper.model;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.annotations.GenericGenerator;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,8 +11,8 @@ import java.util.List;
 public class User {
 
     @Id
-    @GeneratedValue
-    @UuidGenerator
+    @GenericGenerator(name = "uuid", strategy = "org.hibernate.id.UUIDGenerator")
+    @GeneratedValue(generator = "uuid")
     private String id;
 
     @Column(nullable = false, unique = true)
