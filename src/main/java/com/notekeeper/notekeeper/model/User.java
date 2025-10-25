@@ -1,50 +1,47 @@
 package com.notekeeper.notekeeper.model;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.GenericGenerator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
 public class User {
 
     @Id
-    @GenericGenerator(name = "uuid", strategy = "org.hibernate.id.UUIDGenerator")
-    @GeneratedValue(generator = "uuid")
+    @Column(name = "id", updatable = false, nullable = false)
     private String id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 50)
     private String username;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 100)
     private String email;
 
+    @JsonIgnore
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private String firstName;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private String lastName;
 
-    // Many-to-One: Many users belong to one location
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "location_id")
     private Location location;
 
-    // One-to-One: User has one profile
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private UserProfile profile;
 
-    // One-to-Many: User creates many pages
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Page> pages = new ArrayList<>();
 
-    // One-to-Many: User owns many workspaces
-    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Workspace> workspaces = new ArrayList<>();
 
     @Column(nullable = false, updatable = false)
@@ -53,19 +50,31 @@ public class User {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    // Constructor
     public User() {
+    }
+
+    public User(String username, String email, String password, String firstName, String lastName) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
+        this.firstName = firstName;
+        this.lastName = lastName;
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        this.id = UUID.randomUUID().toString();
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 
-    // Getters and Setters
-    public String getId() {
-        return id;
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public String getId() {
+        return id;
     }
 
     public String getUsername() {
@@ -144,20 +153,11 @@ public class User {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-        this.updatedAt = LocalDateTime.now();
     }
 }
