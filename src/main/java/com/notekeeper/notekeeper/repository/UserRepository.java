@@ -28,7 +28,7 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     List<User> findByUsernameContainingIgnoreCase(String username);
 
-    // Location-based queries (REQUIRED)
+    // Location-based queries
     @Query("SELECT u FROM User u WHERE u.location.name = :locationName")
     List<User> findByLocationName(@Param("locationName") String locationName);
 
@@ -52,10 +52,9 @@ public interface UserRepository extends JpaRepository<User, String> {
     Page<User> findByLocationNamePaginated(@Param("locationName") String locationName, Pageable pageable);
 
     // Custom queries
-@Query("SELECT u FROM User u WHERE LOWER(u.firstName) LIKE LOWER(CONCAT('%',
-:keyword, '%')) " +
-"OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :keyword, '%'))")
-List<User> searchUsers(@Param("keyword") String keyword);
+    @Query("SELECT u FROM User u WHERE LOWER(u.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<User> searchUsers(@Param("keyword") String keyword);
 
     @Query("SELECT COUNT(u) FROM User u WHERE u.location.id = :locationId")
     long countByLocationId(@Param("locationId") String locationId);

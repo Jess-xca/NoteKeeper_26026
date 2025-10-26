@@ -25,7 +25,7 @@ public interface LocationRepository extends JpaRepository<Location, String> {
 
     List<Location> findByParentId(String parentId);
 
-    List<Location> findByParentIsNull(); // Get all provinces
+    List<Location> findByParentIsNull();
 
     List<Location> findByNameContainingIgnoreCase(String name);
 
@@ -33,9 +33,7 @@ public interface LocationRepository extends JpaRepository<Location, String> {
     @Query("SELECT l FROM Location l WHERE l.parent.code = :parentCode")
     List<Location> findByParentCode(@Param("parentCode") String parentCode);
 
-@Query("SELECT l FROM Location l WHERE l.parent.type = 'PROVINCE' AND
-l.parent.code = :provinceCode AND l.type='DISTRICT'")
-
+    @Query("SELECT l FROM Location l WHERE l.parent.type = 'PROVINCE' AND l.parent.code = :provinceCode AND l.type = 'DISTRICT'")
     List<Location> findDistrictsByProvinceCode(@Param("provinceCode") String provinceCode);
 
     // existsBy queries
