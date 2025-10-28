@@ -8,6 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TagService {
@@ -16,22 +17,23 @@ public class TagService {
     private TagRepository tagRepository;
 
     // CREATE
-    public Tag createTag(Tag tag) {
+    public String createTag(Tag tag) {
         if (tagRepository.existsByName(tag.getName())) {
-            throw new RuntimeException("Tag name already exists");
+            return "name exists";
         }
-        return tagRepository.save(tag);
+        Tag saved = tagRepository.save(tag);
+        return saved.getId();
     }
 
     // READ
     public Tag getTagById(String id) {
-        return tagRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tag not found with id: " + id));
+        Optional<Tag> tag = tagRepository.findById(id);
+        return tag.orElse(null);
     }
 
     public Tag getTagByName(String name) {
-        return tagRepository.findByName(name)
-                .orElseThrow(() -> new RuntimeException("Tag not found with name: " + name));
+        Optional<Tag> tag = tagRepository.findByName(name);
+        return tag.orElse(null);
     }
 
     public List<Tag> getAllTags() {
@@ -51,17 +53,30 @@ public class TagService {
     }
 
     // UPDATE
-    public Tag updateTag(String id, Tag tagDetails) {
-        Tag tag = getTagById(id);
+    public String updateTag(String id, Tag tagDetails) {
+        Optional<Tag> tagOpt = tagRepository.findById(id);
+
+        if (!tagOpt.isPresent()) {
+            return "not found";
+        }
+
+        Tag tag = tagOpt.get();
         tag.setName(tagDetails.getName());
         tag.setColor(tagDetails.getColor());
-        return tagRepository.save(tag);
+        tagRepository.save(tag);
+        return "success";
     }
 
     // DELETE
-    public void deleteTag(String id) {
-        Tag tag = getTagById(id);
-        tagRepository.delete(tag);
+    public String deleteTag(String id) {
+        Optional<Tag> tagOpt = tagRepository.findById(id);
+
+        if (!tagOpt.isPresent()) {
+            return "not found";
+        }
+
+        tagRepository.delete(tagOpt.get());
+        return "success";
     }
 
     // PAGINATION

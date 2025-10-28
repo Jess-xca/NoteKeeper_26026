@@ -9,6 +9,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class WorkspaceService {
@@ -17,14 +18,19 @@ public class WorkspaceService {
     private WorkspaceRepository workspaceRepository;
 
     // CREATE
-    public Workspace createWorkspace(Workspace workspace) {
-        return workspaceRepository.save(workspace);
+    public String createWorkspace(Workspace workspace) {
+        try {
+            Workspace saved = workspaceRepository.save(workspace);
+            return saved.getId();
+        } catch (Exception e) {
+            return "error: " + e.getMessage();
+        }
     }
 
     // READ
     public Workspace getWorkspaceById(String id) {
-        return workspaceRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Workspace not found with id: " + id));
+        Optional<Workspace> workspace = workspaceRepository.findById(id);
+        return workspace.orElse(null);
     }
 
     public List<Workspace> getAllWorkspaces() {
@@ -36,8 +42,8 @@ public class WorkspaceService {
     }
 
     public Workspace getInboxWorkspace(String ownerId) {
-        return workspaceRepository.findByOwnerIdAndIsDefaultTrue(ownerId)
-                .orElseThrow(() -> new RuntimeException("Inbox not found"));
+        Optional<Workspace> workspace = workspaceRepository.findByOwnerIdAndIsDefaultTrue(ownerId);
+        return workspace.orElse(null);
     }
 
     public List<Workspace> searchWorkspaces(String keyword) {
@@ -49,21 +55,37 @@ public class WorkspaceService {
     }
 
     // UPDATE
-    public Workspace updateWorkspace(String id, Workspace workspaceDetails) {
-        Workspace workspace = getWorkspaceById(id);
+    public String updateWorkspace(String id, Workspace workspaceDetails) {
+        Optional<Workspace> workspaceOpt = workspaceRepository.findById(id);
+
+        if (!workspaceOpt.isPresent()) {
+            return "not found";
+        }
+
+        Workspace workspace = workspaceOpt.get();
         workspace.setName(workspaceDetails.getName());
         workspace.setDescription(workspaceDetails.getDescription());
         workspace.setIcon(workspaceDetails.getIcon());
-        return workspaceRepository.save(workspace);
+        workspaceRepository.save(workspace);
+        return "success";
     }
 
     // DELETE
-    public void deleteWorkspace(String id) {
-        Workspace workspace = getWorkspaceById(id);
-        if (workspace.getIsDefault()) {
-            throw new RuntimeException("Cannot delete default Inbox workspace");
+    public String deleteWorkspace(String id) {
+        Optional<Workspace> workspaceOpt = workspaceRepository.findById(id);
+
+        if (!workspaceOpt.isPresent()) {
+            return "not found";
         }
+
+        Workspace workspace = workspaceOpt.get();
+
+        if (workspace.getIsDefault()) {
+            return "cannot delete inbox";
+        }
+
         workspaceRepository.delete(workspace);
+        return "success";
     }
 
     // SORTING

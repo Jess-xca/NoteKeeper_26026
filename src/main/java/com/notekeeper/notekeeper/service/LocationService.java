@@ -6,10 +6,10 @@ import com.notekeeper.notekeeper.repository.LocationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class LocationService {
@@ -18,22 +18,42 @@ public class LocationService {
     private LocationRepository locationRepository;
 
     // CREATE
-    public Location createLocation(Location location) {
+    public String createLocation(Location location) {
         if (locationRepository.existsByCode(location.getCode())) {
-            throw new RuntimeException("Location code already exists");
+            return "code exists";
         }
-        return locationRepository.save(location);
+        Location saved = locationRepository.save(location);
+        return saved.getId();
+    }
+
+    public String createLocationWithParent(String parentCode, Location childLocation) {
+        if (parentCode != null) {
+            Optional<Location> parent = locationRepository.findByCode(parentCode);
+
+            if (!parent.isPresent()) {
+                return "parent not found";
+            }
+
+            childLocation.setParent(parent.get());
+        }
+
+        if (locationRepository.existsByCode(childLocation.getCode())) {
+            return "code exists";
+        }
+
+        Location saved = locationRepository.save(childLocation);
+        return saved.getId();
     }
 
     // READ
     public Location getLocationById(String id) {
-        return locationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Location not found with id: " + id));
+        Optional<Location> location = locationRepository.findById(id);
+        return location.orElse(null);
     }
 
     public Location getLocationByCode(String code) {
-        return locationRepository.findByCode(code)
-                .orElseThrow(() -> new RuntimeException("Location not found with code: " + code));
+        Optional<Location> location = locationRepository.findByCode(code);
+        return location.orElse(null);
     }
 
     public List<Location> getAllLocations() {
@@ -61,32 +81,40 @@ public class LocationService {
     }
 
     // UPDATE
-    public Location updateLocation(String id, Location locationDetails) {
-        Location location = getLocationById(id);
+    public String updateLocation(String id, Location locationDetails) {
+        Optional<Location> locationOpt = locationRepository.findById(id);
+
+        if (!locationOpt.isPresent()) {
+            return "not found";
+        }
+
+        Location location = locationOpt.get();
         location.setName(locationDetails.getName());
         location.setCode(locationDetails.getCode());
         location.setType(locationDetails.getType());
-        return locationRepository.save(location);
+        locationRepository.save(location);
+        return "success";
     }
 
     // DELETE
-    public void deleteLocation(String id) {
-        Location location = getLocationById(id);
+    public String deleteLocation(String id) {
+        Optional<Location> locationOpt = locationRepository.findById(id);
+
+        if (!locationOpt.isPresent()) {
+            return "not found";
+        }
+
+        Location location = locationOpt.get();
+
         if (!location.getChildren().isEmpty()) {
-            throw new RuntimeException("Cannot delete location with children");
+            return "has children";
         }
         if (!location.getUsers().isEmpty()) {
-            throw new RuntimeException("Cannot delete location with users");
+            return "has users";
         }
-        locationRepository.delete(location);
-    }
 
-    // SORTING
-    public List<Location> getLocationsSorted(String sortBy, String direction) {
-        Sort sort = direction.equalsIgnoreCase("asc")
-                ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
-        return locationRepository.findAll(sort);
+        locationRepository.delete(location);
+        return "success";
     }
 
     // PAGINATION

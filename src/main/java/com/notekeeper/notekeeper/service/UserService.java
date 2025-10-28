@@ -1,121 +1,233 @@
-package com.notekeeper.notekeeper.service;
+package com.notekeeper.notekeeper.controller;
 
+import com.notekeeper.notekeeper.dto.UserDTO;
+import com.notekeeper.notekeeper.mapper.DTOMapper;
 import com.notekeeper.notekeeper.model.User;
-import com.notekeeper.notekeeper.model.UserProfile;
-import com.notekeeper.notekeeper.model.Workspace;
-import com.notekeeper.notekeeper.repository.UserRepository;
-import com.notekeeper.notekeeper.repository.UserProfileRepository;
-import com.notekeeper.notekeeper.repository.WorkspaceRepository;
+import com.notekeeper.notekeeper.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
-@Service
-public class UserService {
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private UserProfileRepository userProfileRepository;
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
 
     @Autowired
-    private WorkspaceRepository workspaceRepository;
+    private UserService userService;
 
-    // CREATE
-    public User createUser(User user) {
-        if (userRepository.existsByUsername(user.getUsername())) {
-            throw new RuntimeException("Username already exists");
+    @Autowired
+    private DTOMapper dtoMapper;
+
+    @PostMapping
+    public ResponseEntity<?> createUser(@RequestBody User user) {
+        try {
+            String result = userService.createUser(user);
+            
+            if (result.equals("username exists")) {
+                return new ResponseEntity<>("Username already taken", HttpStatus.CONFLICT);
+            } else if (result.equals("email exists")) {
+                return new ResponseEntity<>("Email already registered", HttpStatus.CONFLICT);
+            } else {
+                User createdUser = userService.getUserById(result);
+                return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(dtoMapper.toUserDTO(createdUser));
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to create user: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("Email already exists");
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getAllUsers() {
+        try {
+            List<User> users = userService.getAllUsers();
+            List<UserDTO> userDTOs = users.stream()
+                    .map(dtoMapper::toUserDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(userDTOs);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch users: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
         }
-
-        User savedUser = userRepository.save(user);
-
-        // Create default profile
-        UserProfile profile = new UserProfile(savedUser);
-        userProfileRepository.save(profile);
-
-        // Create default Inbox workspace
-        Workspace inbox = new Workspace("Inbox", savedUser, true);
-        inbox.setDescription("Quick capture notes");
-        inbox.setIcon("📥");
-        workspaceRepository.save(inbox);
-
-        return savedUser;
     }
 
-    // READ
-    public User getUserById(String id) {
-        return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getUserById(@PathVariable String id) {
+        try {
+            User user = userService.getUserById(id);
+            if (user == null) {
+                return new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND);
+            }
+            return ResponseEntity.ok(dtoMapper.toUserDTO(user));
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch user: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public User getUserByUsername(String username) {
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    @GetMapping("/username/{username}")
+    public ResponseEntity<?> getUserByUsername(@PathVariable String username) {
+        try {
+            User user = userService.getUserByUsername(username);
+            if (user == null) {
+                return new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND);
+            }
+            return ResponseEntity.ok(dtoMapper.toUserDTO(user));
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch user: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    @GetMapping("/by-location")
+    public ResponseEntity<?> getUsersByLocation(@RequestParam String locationName) {
+        try {
+            List<User> users = userService.getUsersByLocationName(locationName);
+            List<UserDTO> userDTOs = users.stream()
+                    .map(dtoMapper::toUserDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(userDTOs);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch users by location: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public List<User> getUsersByLocationName(String locationName) {
-        return userRepository.findByLocationName(locationName);
+    @GetMapping("/by-province-code")
+    public ResponseEntity<?> getUsersByProvinceCode(@RequestParam String code) {
+        try {
+            List<User> users = userService.getUsersByProvinceCode(code);
+            List<UserDTO> userDTOs = users.stream()
+                    .map(dtoMapper::toUserDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(userDTOs);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch users: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public List<User> getUsersByProvinceCode(String provinceCode) {
-        return userRepository.findByLocationCodePrefix(provinceCode);
+    @GetMapping("/search")
+    public ResponseEntity<?> searchUsers(@RequestParam String keyword) {
+        try {
+            List<User> users = userService.searchUsers(keyword);
+            List<UserDTO> userDTOs = users.stream()
+                    .map(dtoMapper::toUserDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(userDTOs);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to search users: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public List<User> searchUsers(String keyword) {
-        return userRepository.searchUsers(keyword);
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable String id, @RequestBody User user) {
+        try {
+            String result = userService.updateUser(id, user);
+            
+            if (result.equals("not found")) {
+                return new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND);
+            } else if (result.equals("email exists")) {
+                return new ResponseEntity<>("Email already taken by another user", HttpStatus.CONFLICT);
+            } else {
+                User updatedUser = userService.getUserById(id);
+                return ResponseEntity.ok(dtoMapper.toUserDTO(updatedUser));
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to update user: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    // UPDATE
-    public User updateUser(String id, User userDetails) {
-        User user = getUserById(id);
-        user.setFirstName(userDetails.getFirstName());
-        user.setLastName(userDetails.getLastName());
-        user.setEmail(userDetails.getEmail());
-        user.setLocation(userDetails.getLocation());
-        return userRepository.save(user);
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteUser(@PathVariable String id) {
+        try {
+            String result = userService.deleteUser(id);
+            
+            if (result.equals("not found")) {
+                return new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND);
+            } else if (result.equals("has pages")) {
+                return new ResponseEntity<>("Cannot delete user with existing pages", HttpStatus.CONFLICT);
+            } else {
+                return new ResponseEntity<>("User deleted successfully", HttpStatus.OK);
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to delete user: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    // DELETE
-    public void deleteUser(String id) {
-        User user = getUserById(id);
-        userRepository.delete(user);
+    @GetMapping("/sorted")
+    public ResponseEntity<?> getUsersSorted(
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
+        try {
+            List<User> users = userService.getUsersSorted(sortBy, direction);
+            List<UserDTO> userDTOs = users.stream()
+                    .map(dtoMapper::toUserDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(userDTOs);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to sort users: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    // SORTING
-    public List<User> getUsersSorted(String sortBy, String direction) {
-        Sort sort = direction.equalsIgnoreCase("asc")
-                ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
-        return userRepository.findAll(sort);
+    @GetMapping("/paginated")
+    public ResponseEntity<?> getUsersPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            Page<User> users = userService.getUsersPaginated(page, size);
+            Page<UserDTO> userDTOs = users.map(dtoMapper::toUserDTO);
+            return ResponseEntity.ok(userDTOs);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch paginated users: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    // PAGINATION
-    public Page<User> getUsersPaginated(int page, int size) {
-        return userRepository.findAll(PageRequest.of(page, size));
+    @GetMapping("/by-location/paginated")
+    public ResponseEntity<?> getUsersByLocationPaginated(
+            @RequestParam String locationName,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            Page<User> users = userService.getUsersByLocationPaginated(locationName, page, size);
+            Page<UserDTO> userDTOs = users.map(dtoMapper::toUserDTO);
+            return ResponseEntity.ok(userDTOs);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch users: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    public Page<User> getUsersByLocationPaginated(String locationName, int page, int size) {
-        return userRepository.findByLocationNamePaginated(locationName, PageRequest.of(page, size));
+    @GetMapping("/count")
+    public ResponseEntity<?> countUsers() {
+        try {
+            long count = userService.countUsers();
+            return ResponseEntity.ok(count);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to count users: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
-    // STATISTICS
-    public long countUsers() {
-        return userRepository.count();
-    }
-
-    public boolean isUsernameAvailable(String username) {
-        return !userRepository.existsByUsername(username);
+    @GetMapping("/check-username")
+    public ResponseEntity<?> checkUsername(@RequestParam String username) {
+        try {
+            boolean available = userService.isUsernameAvailable(username);
+            return ResponseEntity.ok(available);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to check username: " + e.getMessage(), 
+                HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 }

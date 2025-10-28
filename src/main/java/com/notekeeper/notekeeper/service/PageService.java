@@ -12,6 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class PageService {
@@ -26,25 +27,35 @@ public class PageService {
     private WorkspaceRepository workspaceRepository;
 
     // CREATE
-    public Page createPage(Page page) {
-        return pageRepository.save(page);
+    public String createPage(Page page) {
+        try {
+            Page saved = pageRepository.save(page);
+            return saved.getId();
+        } catch (Exception e) {
+            return "error: " + e.getMessage();
+        }
     }
 
-    public Page createQuickNote(String userId, String title, String content) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public String createQuickNote(String userId, String title, String content) {
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (!userOpt.isPresent()) {
+            return "user not found";
+        }
 
-        Workspace inbox = workspaceRepository.findByOwnerIdAndIsDefaultTrue(userId)
-                .orElseThrow(() -> new RuntimeException("Inbox not found"));
+        Optional<Workspace> inboxOpt = workspaceRepository.findByOwnerIdAndIsDefaultTrue(userId);
+        if (!inboxOpt.isPresent()) {
+            return "inbox not found";
+        }
 
-        Page quickNote = new Page(title, content, user, inbox);
-        return pageRepository.save(quickNote);
+        Page quickNote = new Page(title, content, userOpt.get(), inboxOpt.get());
+        Page saved = pageRepository.save(quickNote);
+        return saved.getId();
     }
 
     // READ
     public Page getPageById(String id) {
-        return pageRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Page not found with id: " + id));
+        Optional<Page> page = pageRepository.findById(id);
+        return page.orElse(null);
     }
 
     public List<Page> getAllPages() {
@@ -80,39 +91,75 @@ public class PageService {
     }
 
     // UPDATE
-    public Page updatePage(String id, Page pageDetails) {
-        Page page = getPageById(id);
+    public String updatePage(String id, Page pageDetails) {
+        Optional<Page> pageOpt = pageRepository.findById(id);
+
+        if (!pageOpt.isPresent()) {
+            return "not found";
+        }
+
+        Page page = pageOpt.get();
         page.setTitle(pageDetails.getTitle());
         page.setContent(pageDetails.getContent());
         page.setIcon(pageDetails.getIcon());
         page.setCoverImage(pageDetails.getCoverImage());
-        return pageRepository.save(page);
+        pageRepository.save(page);
+        return "success";
     }
 
-    public Page toggleFavorite(String pageId) {
-        Page page = getPageById(pageId);
+    public String toggleFavorite(String pageId) {
+        Optional<Page> pageOpt = pageRepository.findById(pageId);
+
+        if (!pageOpt.isPresent()) {
+            return "not found";
+        }
+
+        Page page = pageOpt.get();
         page.setIsFavorite(!page.getIsFavorite());
-        return pageRepository.save(page);
+        pageRepository.save(page);
+        return "success";
     }
 
-    public Page toggleArchive(String pageId) {
-        Page page = getPageById(pageId);
+    public String toggleArchive(String pageId) {
+        Optional<Page> pageOpt = pageRepository.findById(pageId);
+
+        if (!pageOpt.isPresent()) {
+            return "not found";
+        }
+
+        Page page = pageOpt.get();
         page.setIsArchived(!page.getIsArchived());
-        return pageRepository.save(page);
+        pageRepository.save(page);
+        return "success";
     }
 
-    public Page movePage(String pageId, String workspaceId) {
-        Page page = getPageById(pageId);
-        Workspace workspace = workspaceRepository.findById(workspaceId)
-                .orElseThrow(() -> new RuntimeException("Workspace not found"));
-        page.setWorkspace(workspace);
-        return pageRepository.save(page);
+    public String movePage(String pageId, String workspaceId) {
+        Optional<Page> pageOpt = pageRepository.findById(pageId);
+        if (!pageOpt.isPresent()) {
+            return "page not found";
+        }
+
+        Optional<Workspace> workspaceOpt = workspaceRepository.findById(workspaceId);
+        if (!workspaceOpt.isPresent()) {
+            return "workspace not found";
+        }
+
+        Page page = pageOpt.get();
+        page.setWorkspace(workspaceOpt.get());
+        pageRepository.save(page);
+        return "success";
     }
 
     // DELETE
-    public void deletePage(String id) {
-        Page page = getPageById(id);
-        pageRepository.delete(page);
+    public String deletePage(String id) {
+        Optional<Page> pageOpt = pageRepository.findById(id);
+
+        if (!pageOpt.isPresent()) {
+            return "not found";
+        }
+
+        pageRepository.delete(pageOpt.get());
+        return "success";
     }
 
     // SORTING

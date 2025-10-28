@@ -8,6 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class UserProfileService {
@@ -16,19 +17,24 @@ public class UserProfileService {
     private UserProfileRepository userProfileRepository;
 
     // CREATE
-    public UserProfile createProfile(UserProfile profile) {
-        return userProfileRepository.save(profile);
+    public String createProfile(UserProfile profile) {
+        try {
+            UserProfile saved = userProfileRepository.save(profile);
+            return saved.getId();
+        } catch (Exception e) {
+            return "error: " + e.getMessage();
+        }
     }
 
     // READ
     public UserProfile getProfileById(String id) {
-        return userProfileRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Profile not found with id: " + id));
+        Optional<UserProfile> profile = userProfileRepository.findById(id);
+        return profile.orElse(null);
     }
 
     public UserProfile getProfileByUserId(String userId) {
-        return userProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Profile not found for user: " + userId));
+        Optional<UserProfile> profile = userProfileRepository.findByUserId(userId);
+        return profile.orElse(null);
     }
 
     public List<UserProfile> getAllProfiles() {
@@ -40,19 +46,32 @@ public class UserProfileService {
     }
 
     // UPDATE
-    public UserProfile updateProfile(String id, UserProfile profileDetails) {
-        UserProfile profile = getProfileById(id);
+    public String updateProfile(String id, UserProfile profileDetails) {
+        Optional<UserProfile> profileOpt = userProfileRepository.findById(id);
+
+        if (!profileOpt.isPresent()) {
+            return "not found";
+        }
+
+        UserProfile profile = profileOpt.get();
         profile.setBio(profileDetails.getBio());
         profile.setAvatarUrl(profileDetails.getAvatarUrl());
         profile.setTheme(profileDetails.getTheme());
         profile.setLanguage(profileDetails.getLanguage());
-        return userProfileRepository.save(profile);
+        userProfileRepository.save(profile);
+        return "success";
     }
 
     // DELETE
-    public void deleteProfile(String id) {
-        UserProfile profile = getProfileById(id);
-        userProfileRepository.delete(profile);
+    public String deleteProfile(String id) {
+        Optional<UserProfile> profileOpt = userProfileRepository.findById(id);
+
+        if (!profileOpt.isPresent()) {
+            return "not found";
+        }
+
+        userProfileRepository.delete(profileOpt.get());
+        return "success";
     }
 
     // PAGINATION

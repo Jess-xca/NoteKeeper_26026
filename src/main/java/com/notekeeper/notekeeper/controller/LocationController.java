@@ -1,123 +1,200 @@
-package com.notekeeper.notekeeper.controller;
+// package com.notekeeper.notekeeper.controller;
 
-import com.notekeeper.notekeeper.model.Location;
-import com.notekeeper.notekeeper.model.LocationType;
-import com.notekeeper.notekeeper.service.LocationService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+// import com.notekeeper.notekeeper.dto.LocationDTO;
+// import com.notekeeper.notekeeper.mapper.DTOMapper;
+// import com.notekeeper.notekeeper.model.Location;
+// import com.notekeeper.notekeeper.model.LocationType;
+// import com.notekeeper.notekeeper.service.LocationService;
+// import org.springframework.beans.factory.annotation.Autowired;
+// import org.springframework.http.HttpStatus;
+// import org.springframework.http.ResponseEntity;
+// import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+// import java.util.List;
+// import java.util.stream.Collectors;
 
-@RestController
-@RequestMapping("/api/locations")
-public class LocationController {
+// @RestController
+// @RequestMapping("/api/locations")
+// public class LocationController {
 
-    @Autowired
-    private LocationService locationService;
+//     @Autowired
+//     private LocationService locationService;
 
-    @PostMapping
-    public ResponseEntity<Location> createLocation(@RequestBody Location location) {
-        Location createdLocation = locationService.createLocation(location);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdLocation);
-    }
+//     @Autowired
+//     private DTOMapper dtoMapper;
 
-    @GetMapping
-    public ResponseEntity<List<Location>> getAllLocations() {
-        List<Location> locations = locationService.getAllLocations();
-        return ResponseEntity.ok(locations);
-    }
+//     @PostMapping
+//     public ResponseEntity<?> createLocation(@RequestBody Location location) {
+//         try {
+//             String result = locationService.createLocation(location);
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Location> getLocationById(@PathVariable String id) {
-        Location location = locationService.getLocationById(id);
-        return ResponseEntity.ok(location);
-    }
+//             if (result.equals("code exists")) {
+//                 return new ResponseEntity<>("Location code already exists", HttpStatus.CONFLICT);
+//             } else {
+//                 Location createdLocation = locationService.getLocationById(result);
+//                 return ResponseEntity.status(HttpStatus.CREATED)
+//                         .body(dtoMapper.toLocationDTO(createdLocation));
+//             }
+//         } catch (Exception e) {
+//             return new ResponseEntity<>("Failed to create location: " + e.getMessage(),
+//                     HttpStatus.INTERNAL_SERVER_ERROR);
+//         }
+//     }
 
-    @GetMapping("/code/{code}")
-    public ResponseEntity<Location> getLocationByCode(@PathVariable String code) {
-        Location location = locationService.getLocationByCode(code);
-        return ResponseEntity.ok(location);
-    }
+//     @PostMapping("/with-parent")
+//     public ResponseEntity<?> createLocationWithParent(
+//             @RequestParam(required = false) String parentCode,
+//             @RequestBody Location childLocation) {
+//         try {
+//             String result = locationService.createLocationWithParent(parentCode, childLocation);
 
-    @GetMapping("/provinces")
-    public ResponseEntity<List<Location>> getAllProvinces() {
-        List<Location> provinces = locationService.getAllProvinces();
-        return ResponseEntity.ok(provinces);
-    }
+//             if (result.equals("code exists")) {
+//                 return new ResponseEntity<>("Location code already exists", HttpStatus.CONFLICT);
+//             } else if (result.equals("parent not found")) {
+//                 return new ResponseEntity<>("Parent location not found", HttpStatus.NOT_FOUND);
+//             } else {
+//                 Location createdLocation = locationService.getLocationById(result);
+//                 return ResponseEntity.status(HttpStatus.CREATED)
+//                         .body(dtoMapper.toLocationDTO(createdLocation));
+//             }
+//         } catch (Exception e) {
+//             return new ResponseEntity<>("Failed to create location: " + e.getMessage(),
+//                     HttpStatus.INTERNAL_SERVER_ERROR);
+//         }
+//     }
 
-    @GetMapping("/type/{type}")
-    public ResponseEntity<List<Location>> getLocationsByType(@PathVariable LocationType type) {
-        List<Location> locations = locationService.getLocationsByType(type);
-        return ResponseEntity.ok(locations);
-    }
+//     @GetMapping
+//     public ResponseEntity<?> getAllLocations() {
+//         try {
+//             List<Location> locations = locationService.getAllLocations();
+//             List<LocationDTO> locationDTOs = locations.stream()
+//                     .map(dtoMapper::toLocationDTO)
+//                     .collect(Collectors.toList());
+//             return ResponseEntity.ok(locationDTOs);
+//         } catch (Exception e) {
+//             return new ResponseEntity<>("Failed to fetch locations: " + e.getMessage(),
+//                     HttpStatus.INTERNAL_SERVER_ERROR);
+//         }
+//     }
 
-    @GetMapping("/{parentId}/children")
-    public ResponseEntity<List<Location>> getChildren(@PathVariable String parentId) {
-        List<Location> children = locationService.getChildrenByParentId(parentId);
-        return ResponseEntity.ok(children);
-    }
+//     @GetMapping("/{id}")
+//     public ResponseEntity<?> getLocationById(@PathVariable String id) {
+//         try {
+//             Location location = locationService.getLocationById(id);
+//             if (location == null) {
+//                 return new ResponseEntity<>("Location not found", HttpStatus.NOT_FOUND);
+//             }
+//             return ResponseEntity.ok(dtoMapper.toLocationDTO(location));
+//         } catch (Exception e) {
+//             return new ResponseEntity<>("Failed to fetch location: " + e.getMessage(),
+//                     HttpStatus.INTERNAL_SERVER_ERROR);
+//         }
+//     }
 
-    @GetMapping("/provinces/{provinceCode}/districts")
-    public ResponseEntity<List<Location>> getDistrictsByProvinceCode(@PathVariable String provinceCode) {
-        List<Location> districts = locationService.getDistrictsByProvinceCode(provinceCode);
-        return ResponseEntity.ok(districts);
-    }
+//     @GetMapping("/code/{code}")
+//     public ResponseEntity<?> getLocationByCode(@PathVariable String code) {
+//         try {
+//             Location location = locationService.getLocationByCode(code);
+//             if (location == null) {
+//                 return new ResponseEntity<>("Location not found", HttpStatus.NOT_FOUND);
+//             }
+//             return ResponseEntity.ok(dtoMapper.toLocationDTO(location));
+//         } catch (Exception e) {
+//             return new ResponseEntity<>("Failed to fetch location: " + e.getMessage(),
+//                     HttpStatus.INTERNAL_SERVER_ERROR);
+//         }
+//     }
 
-    @GetMapping("/search")
-    public ResponseEntity<List<Location>> searchLocations(@RequestParam String keyword) {
-        List<Location> locations = locationService.searchLocations(keyword);
-        return ResponseEntity.ok(locations);
-    }
+//     @GetMapping("/provinces")
+//     public ResponseEntity<?> getAllProvinces() {
+//         try {
+//             List<Location> provinces = locationService.getAllProvinces();
+//             List<LocationDTO> locationDTOs = provinces.stream()
+//                     .map(dtoMapper::toLocationDTO)
+//                     .collect(Collectors.toList());
+//             return ResponseEntity.ok(locationDTOs);
+//         } catch (Exception e) {
+//             return new ResponseEntity<>("Failed to fetch provinces: " + e.getMessage(),
+//                     HttpStatus.INTERNAL_SERVER_ERROR);
+//         }
+//     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Location> updateLocation(@PathVariable String id, @RequestBody Location location) {
-        Location updatedLocation = locationService.updateLocation(id, location);
-        return ResponseEntity.ok(updatedLocation);
-    }
+//     @GetMapping("/type/{type}")
+//     public ResponseEntity<?> getLocationsByType(@PathVariable LocationType type) {
+//         try {
+//             List<Location> locations = locationService.getLocationsByType(type);
+//             List<LocationDTO> locationDTOs = locations.stream()
+//                     .map(dtoMapper::toLocationDTO)
+//                     .collect(Collectors.toList());
+//             return ResponseEntity.ok(locationDTOs);
+//         } catch (Exception e) {
+//             return new ResponseEntity<>("Failed to fetch locations: " + e.getMessage(),
+//                     HttpStatus.INTERNAL_SERVER_ERROR);
+//         }
+//     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteLocation(@PathVariable String id) {
-        locationService.deleteLocation(id);
-        return ResponseEntity.noContent().build();
-    }
+//     @GetMapping("/{parentId}/children")
+//     public ResponseEntity<?> getChildren(@PathVariable String parentId) {
+//         try {
+//             List<Location> children = locationService.getChildrenByParentId(parentId);
+//             List<LocationDTO> locationDTOs = children.stream()
+//                     .map(dtoMapper::toLocationDTO)
+//                     .collect(Collectors.toList());
+//             return ResponseEntity.ok(locationDTOs);
+//         } catch (Exception e) {
+//             return new ResponseEntity<>("Failed to fetch children: " + e.getMessage(),
+//                     HttpStatus.INTERNAL_SERVER_ERROR);
+//         }
+//     }
 
-    @GetMapping("/sorted")
-    public ResponseEntity<List<Location>> getLocationsSorted(
-            @RequestParam(defaultValue = "name") String sortBy,
-            @RequestParam(defaultValue = "asc") String direction) {
-        List<Location> locations = locationService.getLocationsSorted(sortBy, direction);
-        return ResponseEntity.ok(locations);
-    }
+//     @GetMapping("/search")
+//     public ResponseEntity<?> searchLocations(@RequestParam String keyword) {
+//         try {
+//             List<Location> locations = locationService.searchLocations(keyword);
+//             List<LocationDTO> locationDTOs = locations.stream()
+//                     .map(dtoMapper::toLocationDTO)
+//                     .collect(Collectors.toList());
+//             return ResponseEntity.ok(locationDTOs);
+//         } catch (Exception e) {
+//             return new ResponseEntity<>("Failed to search locations: " + e.getMessage(),
+//                     HttpStatus.INTERNAL_SERVER_ERROR);
+//         }
+//     }
 
-    @GetMapping("/paginated")
-    public ResponseEntity<Page<Location>> getLocationsPaginated(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Page<Location> locations = locationService.getLocationsPaginated(page, size);
-        return ResponseEntity.ok(locations);
-    }
+//     @PutMapping("/{id}")
+//     public ResponseEntity<?> updateLocation(@PathVariable String id, @RequestBody Location location) {
+//         try {
+//             String result = locationService.updateLocation(id, location);
 
-    @GetMapping("/type/{type}/paginated")
-    public ResponseEntity<Page<Location>> getLocationsByTypePaginated(
-            @PathVariable LocationType type,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Page<Location> locations = locationService.getLocationsByTypePaginated(type, page, size);
-        return ResponseEntity.ok(locations);
-    }
+//             if (result.equals("not found")) {
+//                 return new ResponseEntity<>("Location not found", HttpStatus.NOT_FOUND);
+//             } else {
+//                 Location updatedLocation = locationService.getLocationById(id);
+//                 return ResponseEntity.ok(dtoMapper.toLocationDTO(updatedLocation));
+//             }
+//         } catch (Exception e) {
+//             return new ResponseEntity<>("Failed to update location: " + e.getMessage(),
+//                     HttpStatus.INTERNAL_SERVER_ERROR);
+//         }
+//     }
 
-    @GetMapping("/{locationId}/count-children")
-    public ResponseEntity<Long> countChildren(@PathVariable String locationId) {
-        long count = locationService.countChildren(locationId);
-        return ResponseEntity.ok(count);
-    }
+//     @DeleteMapping("/{id}")
+//     public ResponseEntity<?> deleteLocation(@PathVariable String id) {
+//         try {
+//             String result = locationService.deleteLocation(id);
 
-    @GetMapping("/{locationId}/count-users")
-    public ResponseEntity<Long> countUsers(@PathVariable String locationId) {
-        long count = locationService.countUsersByLocation(locationId);
-        return ResponseEntity.ok(count);
-    }
-}
+//             if (result.equals("not found")) {
+//                 return new ResponseEntity<>("Location not found", HttpStatus.NOT_FOUND);
+//             } else if (result.equals("has children")) {
+//                 return new ResponseEntity<>("Cannot delete location with children", HttpStatus.CONFLICT);
+//             } else if (result.equals("has users")) {
+//                 return new ResponseEntity<>("Cannot delete location with users", HttpStatus.CONFLICT);
+//             } else {
+//                 return new ResponseEntity<>("Location deleted successfully", HttpStatus.OK);
+//             }
+//         } catch (Exception e) {
+//             return new ResponseEntity<>("Failed to delete location: " + e.getMessage(),
+//                     HttpStatus.INTERNAL_SERVER_ERROR);
+//         }
+//     }
+// }

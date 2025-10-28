@@ -45,6 +45,19 @@ public class DTOMapper {
                 user.getLastName());
     }
 
+    // Map UserDTO to User entity (for input)
+    public User toUserEntity(UserDTO dto) {
+        if (dto == null)
+            return null;
+        User user = new User();
+        user.setUsername(dto.getUsername());
+        user.setEmail(dto.getEmail());
+        user.setFirstName(dto.getFirstName());
+        user.setLastName(dto.getLastName());
+        // Location and profile can be set if needed, but usually handled elsewhere
+        return user;
+    }
+
     // Location Mappings
     public LocationDTO toLocationDTO(Location location) {
         if (location == null)
