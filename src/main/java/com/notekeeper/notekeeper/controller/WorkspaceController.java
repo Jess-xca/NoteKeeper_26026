@@ -1,5 +1,7 @@
 package com.notekeeper.notekeeper.controller;
 
+import com.notekeeper.notekeeper.dto.WorkspaceDTO;
+import com.notekeeper.notekeeper.mapper.DTOMapper;
 import com.notekeeper.notekeeper.model.Workspace;
 import com.notekeeper.notekeeper.service.WorkspaceService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/workspaces")
@@ -18,169 +21,223 @@ public class WorkspaceController {
     @Autowired
     private WorkspaceService workspaceService;
 
-    // CREATE
+    @Autowired
+    private DTOMapper dtoMapper;
+
     @PostMapping
-    public ResponseEntity<Workspace> createWorkspace(@RequestBody Workspace workspace) {
+    public ResponseEntity<?> createWorkspace(@RequestBody Workspace workspace) {
         try {
-            Workspace createdWorkspace = workspaceService.createWorkspace(workspace);
-            return new ResponseEntity<>(createdWorkspace, HttpStatus.CREATED);
+            String result = workspaceService.createWorkspace(workspace);
+
+            if (result.startsWith("error:")) {
+                return new ResponseEntity<>(result, HttpStatus.INTERNAL_SERVER_ERROR);
+            } else {
+                Workspace createdWorkspace = workspaceService.getWorkspaceById(result);
+                return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toWorkspaceDTO(createdWorkspace));
+            }
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to create workspace: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // READ
     @GetMapping("/{id}")
-    public ResponseEntity<Workspace> getWorkspaceById(@PathVariable String id) {
+    public ResponseEntity<?> getWorkspaceById(@PathVariable String id) {
         try {
             Workspace workspace = workspaceService.getWorkspaceById(id);
-            return new ResponseEntity<>(workspace, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+            if (workspace == null) {
+                return new ResponseEntity<>("Workspace not found", HttpStatus.NOT_FOUND);
+            }
+            return ResponseEntity.ok(dtoMapper.toWorkspaceDTO(workspace));
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch workspace: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping
-    public ResponseEntity<List<Workspace>> getAllWorkspaces() {
+    public ResponseEntity<?> getAllWorkspaces() {
         try {
             List<Workspace> workspaces = workspaceService.getAllWorkspaces();
-            return new ResponseEntity<>(workspaces, HttpStatus.OK);
+            List<WorkspaceDTO> workspaceDTOs = workspaces.stream()
+                    .map(dtoMapper::toWorkspaceDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(workspaceDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch workspaces: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/owner/{ownerId}")
-    public ResponseEntity<List<Workspace>> getWorkspacesByOwner(@PathVariable String ownerId) {
+    public ResponseEntity<?> getWorkspacesByOwner(@PathVariable String ownerId) {
         try {
             List<Workspace> workspaces = workspaceService.getWorkspacesByOwner(ownerId);
-            return new ResponseEntity<>(workspaces, HttpStatus.OK);
+            List<WorkspaceDTO> workspaceDTOs = workspaces.stream()
+                    .map(dtoMapper::toWorkspaceDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(workspaceDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch owner workspaces: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/inbox/{ownerId}")
-    public ResponseEntity<Workspace> getInboxWorkspace(@PathVariable String ownerId) {
+    public ResponseEntity<?> getInboxWorkspace(@PathVariable String ownerId) {
         try {
             Workspace inbox = workspaceService.getInboxWorkspace(ownerId);
-            return new ResponseEntity<>(inbox, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+            if (inbox == null) {
+                return new ResponseEntity<>("Inbox workspace not found", HttpStatus.NOT_FOUND);
+            }
+            return ResponseEntity.ok(dtoMapper.toWorkspaceDTO(inbox));
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch inbox: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/empty/{ownerId}")
-    public ResponseEntity<List<Workspace>> getEmptyWorkspaces(@PathVariable String ownerId) {
+    public ResponseEntity<?> getEmptyWorkspaces(@PathVariable String ownerId) {
         try {
             List<Workspace> workspaces = workspaceService.getEmptyWorkspaces(ownerId);
-            return new ResponseEntity<>(workspaces, HttpStatus.OK);
+            List<WorkspaceDTO> workspaceDTOs = workspaces.stream()
+                    .map(dtoMapper::toWorkspaceDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(workspaceDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch empty workspaces: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<Workspace>> searchWorkspaces(@RequestParam String keyword) {
+    public ResponseEntity<?> searchWorkspaces(@RequestParam String keyword) {
         try {
             List<Workspace> workspaces = workspaceService.searchWorkspaces(keyword);
-            return new ResponseEntity<>(workspaces, HttpStatus.OK);
+            List<WorkspaceDTO> workspaceDTOs = workspaces.stream()
+                    .map(dtoMapper::toWorkspaceDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(workspaceDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to search workspaces: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // UPDATE
     @PutMapping("/{id}")
-    public ResponseEntity<Workspace> updateWorkspace(
+    public ResponseEntity<?> updateWorkspace(
             @PathVariable String id,
             @RequestBody Workspace workspaceDetails) {
         try {
-            Workspace updatedWorkspace = workspaceService.updateWorkspace(id, workspaceDetails);
-            return new ResponseEntity<>(updatedWorkspace, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+            String result = workspaceService.updateWorkspace(id, workspaceDetails);
+
+            if (result.equals("not found")) {
+                return new ResponseEntity<>("Workspace not found", HttpStatus.NOT_FOUND);
+            } else {
+                Workspace updatedWorkspace = workspaceService.getWorkspaceById(id);
+                return ResponseEntity.ok(dtoMapper.toWorkspaceDTO(updatedWorkspace));
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to update workspace: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // DELETE
     @DeleteMapping("/{id}")
-    public ResponseEntity<HttpStatus> deleteWorkspace(@PathVariable String id) {
+    public ResponseEntity<?> deleteWorkspace(@PathVariable String id) {
         try {
-            workspaceService.deleteWorkspace(id);
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            String result = workspaceService.deleteWorkspace(id);
+
+            if (result.equals("not found")) {
+                return new ResponseEntity<>("Workspace not found", HttpStatus.NOT_FOUND);
+            } else if (result.equals("cannot delete inbox")) {
+                return new ResponseEntity<>("Cannot delete default Inbox workspace", HttpStatus.CONFLICT);
+            } else {
+                return new ResponseEntity<>("Workspace deleted successfully", HttpStatus.OK);
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to delete workspace: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // SORTING & PAGINATION
     @GetMapping("/owner/{ownerId}/sorted")
-    public ResponseEntity<List<Workspace>> getWorkspacesSorted(
+    public ResponseEntity<?> getWorkspacesSorted(
             @PathVariable String ownerId,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String direction) {
         try {
             List<Workspace> workspaces = workspaceService.getWorkspacesSorted(ownerId, sortBy, direction);
-            return new ResponseEntity<>(workspaces, HttpStatus.OK);
+            List<WorkspaceDTO> workspaceDTOs = workspaces.stream()
+                    .map(dtoMapper::toWorkspaceDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(workspaceDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to sort workspaces: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/paginated")
-    public ResponseEntity<Page<Workspace>> getWorkspacesPaginated(
+    public ResponseEntity<?> getWorkspacesPaginated(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         try {
             Page<Workspace> workspaces = workspaceService.getWorkspacesPaginated(page, size);
-            return new ResponseEntity<>(workspaces, HttpStatus.OK);
+            Page<WorkspaceDTO> workspaceDTOs = workspaces.map(dtoMapper::toWorkspaceDTO);
+            return ResponseEntity.ok(workspaceDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch paginated workspaces: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/owner/{ownerId}/paginated")
-    public ResponseEntity<Page<Workspace>> getOwnerWorkspacesPaginated(
+    public ResponseEntity<?> getOwnerWorkspacesPaginated(
             @PathVariable String ownerId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         try {
             Page<Workspace> workspaces = workspaceService.getOwnerWorkspacesPaginated(ownerId, page, size);
-            return new ResponseEntity<>(workspaces, HttpStatus.OK);
+            Page<WorkspaceDTO> workspaceDTOs = workspaces.map(dtoMapper::toWorkspaceDTO);
+            return ResponseEntity.ok(workspaceDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch owner workspaces: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // STATISTICS
     @GetMapping("/count")
-    public ResponseEntity<Long> countWorkspaces() {
+    public ResponseEntity<?> countWorkspaces() {
         try {
             long count = workspaceService.countWorkspaces();
-            return new ResponseEntity<>(count, HttpStatus.OK);
+            return ResponseEntity.ok(count);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to count workspaces: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/count/owner/{ownerId}")
-    public ResponseEntity<Long> countOwnerWorkspaces(@PathVariable String ownerId) {
+    public ResponseEntity<?> countOwnerWorkspaces(@PathVariable String ownerId) {
         try {
             long count = workspaceService.countOwnerWorkspaces(ownerId);
-            return new ResponseEntity<>(count, HttpStatus.OK);
+            return ResponseEntity.ok(count);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to count owner workspaces: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/{workspaceId}/count-pages")
-    public ResponseEntity<Long> countWorkspacePages(@PathVariable String workspaceId) {
+    public ResponseEntity<?> countWorkspacePages(@PathVariable String workspaceId) {
         try {
             long count = workspaceService.countWorkspacePages(workspaceId);
-            return new ResponseEntity<>(count, HttpStatus.OK);
+            return ResponseEntity.ok(count);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to count workspace pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

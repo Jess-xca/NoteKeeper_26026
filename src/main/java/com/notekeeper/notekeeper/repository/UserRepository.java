@@ -29,7 +29,7 @@ public interface UserRepository extends JpaRepository<User, String> {
     List<User> findByUsernameContainingIgnoreCase(String username);
 
     // Location-based queries
-    @Query("SELECT u FROM User u WHERE u.location.name = :locationName")
+    @Query("SELECT u FROM User u WHERE LOWER(u.location.name) LIKE LOWER(CONCAT('%', :locationName, '%'))")
     List<User> findByLocationName(@Param("locationName") String locationName);
 
     @Query("SELECT u FROM User u WHERE u.location.code LIKE :codePrefix%")

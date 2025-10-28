@@ -1,5 +1,7 @@
 package com.notekeeper.notekeeper.controller;
 
+import com.notekeeper.notekeeper.dto.TagDTO;
+import com.notekeeper.notekeeper.mapper.DTOMapper;
 import com.notekeeper.notekeeper.model.Tag;
 import com.notekeeper.notekeeper.service.TagService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/tags")
@@ -18,145 +21,189 @@ public class TagController {
     @Autowired
     private TagService tagService;
 
-    // CREATE
+    @Autowired
+    private DTOMapper dtoMapper;
+
     @PostMapping
-    public ResponseEntity<Tag> createTag(@RequestBody Tag tag) {
+    public ResponseEntity<?> createTag(@RequestBody Tag tag) {
         try {
-            Tag createdTag = tagService.createTag(tag);
-            return new ResponseEntity<>(createdTag, HttpStatus.CREATED);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(null, HttpStatus.CONFLICT);
+            String result = tagService.createTag(tag);
+
+            if (result.equals("name exists")) {
+                return new ResponseEntity<>("Tag name already exists", HttpStatus.CONFLICT);
+            } else {
+                Tag createdTag = tagService.getTagById(result);
+                return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toTagDTO(createdTag));
+            }
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to create tag: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // READ
     @GetMapping("/{id}")
-    public ResponseEntity<Tag> getTagById(@PathVariable String id) {
+    public ResponseEntity<?> getTagById(@PathVariable String id) {
         try {
             Tag tag = tagService.getTagById(id);
-            return new ResponseEntity<>(tag, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+            if (tag == null) {
+                return new ResponseEntity<>("Tag not found", HttpStatus.NOT_FOUND);
+            }
+            return ResponseEntity.ok(dtoMapper.toTagDTO(tag));
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch tag: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/name/{name}")
-    public ResponseEntity<Tag> getTagByName(@PathVariable String name) {
+    public ResponseEntity<?> getTagByName(@PathVariable String name) {
         try {
             Tag tag = tagService.getTagByName(name);
-            return new ResponseEntity<>(tag, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+            if (tag == null) {
+                return new ResponseEntity<>("Tag not found", HttpStatus.NOT_FOUND);
+            }
+            return ResponseEntity.ok(dtoMapper.toTagDTO(tag));
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch tag: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping
-    public ResponseEntity<List<Tag>> getAllTags() {
+    public ResponseEntity<?> getAllTags() {
         try {
             List<Tag> tags = tagService.getAllTags();
-            return new ResponseEntity<>(tags, HttpStatus.OK);
+            List<TagDTO> tagDTOs = tags.stream()
+                    .map(dtoMapper::toTagDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(tagDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch tags: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Tag>> getTagsByUserId(@PathVariable String userId) {
+    public ResponseEntity<?> getTagsByUserId(@PathVariable String userId) {
         try {
             List<Tag> tags = tagService.getTagsByUserId(userId);
-            return new ResponseEntity<>(tags, HttpStatus.OK);
+            List<TagDTO> tagDTOs = tags.stream()
+                    .map(dtoMapper::toTagDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(tagDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch user tags: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/unused")
-    public ResponseEntity<List<Tag>> getUnusedTags() {
+    public ResponseEntity<?> getUnusedTags() {
         try {
             List<Tag> tags = tagService.getUnusedTags();
-            return new ResponseEntity<>(tags, HttpStatus.OK);
+            List<TagDTO> tagDTOs = tags.stream()
+                    .map(dtoMapper::toTagDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(tagDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch unused tags: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<Tag>> searchTags(@RequestParam String keyword) {
+    public ResponseEntity<?> searchTags(@RequestParam String keyword) {
         try {
             List<Tag> tags = tagService.searchTags(keyword);
-            return new ResponseEntity<>(tags, HttpStatus.OK);
+            List<TagDTO> tagDTOs = tags.stream()
+                    .map(dtoMapper::toTagDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(tagDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to search tags: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // UPDATE
     @PutMapping("/{id}")
-    public ResponseEntity<Tag> updateTag(
+    public ResponseEntity<?> updateTag(
             @PathVariable String id,
             @RequestBody Tag tagDetails) {
         try {
-            Tag updatedTag = tagService.updateTag(id, tagDetails);
-            return new ResponseEntity<>(updatedTag, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+            String result = tagService.updateTag(id, tagDetails);
+
+            if (result.equals("not found")) {
+                return new ResponseEntity<>("Tag not found", HttpStatus.NOT_FOUND);
+            } else {
+                Tag updatedTag = tagService.getTagById(id);
+                return ResponseEntity.ok(dtoMapper.toTagDTO(updatedTag));
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to update tag: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // DELETE
     @DeleteMapping("/{id}")
-    public ResponseEntity<HttpStatus> deleteTag(@PathVariable String id) {
+    public ResponseEntity<?> deleteTag(@PathVariable String id) {
         try {
-            tagService.deleteTag(id);
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            String result = tagService.deleteTag(id);
+
+            if (result.equals("not found")) {
+                return new ResponseEntity<>("Tag not found", HttpStatus.NOT_FOUND);
+            } else {
+                return new ResponseEntity<>("Tag deleted successfully", HttpStatus.OK);
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to delete tag: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // PAGINATION
     @GetMapping("/paginated")
-    public ResponseEntity<Page<Tag>> getTagsPaginated(
+    public ResponseEntity<?> getTagsPaginated(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         try {
             Page<Tag> tags = tagService.getTagsPaginated(page, size);
-            return new ResponseEntity<>(tags, HttpStatus.OK);
+            Page<TagDTO> tagDTOs = tags.map(dtoMapper::toTagDTO);
+            return ResponseEntity.ok(tagDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch paginated tags: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // STATISTICS & UTILITIES
     @GetMapping("/count")
-    public ResponseEntity<Long> countTags() {
+    public ResponseEntity<?> countTags() {
         try {
             long count = tagService.countTags();
-            return new ResponseEntity<>(count, HttpStatus.OK);
+            return ResponseEntity.ok(count);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to count tags: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/{tagId}/usage-count")
-    public ResponseEntity<Long> countTagUsage(@PathVariable String tagId) {
+    public ResponseEntity<?> countTagUsage(@PathVariable String tagId) {
         try {
             long count = tagService.countTagUsage(tagId);
-            return new ResponseEntity<>(count, HttpStatus.OK);
+            return ResponseEntity.ok(count);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to count tag usage: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/check-name")
-    public ResponseEntity<Boolean> checkTagNameAvailability(@RequestParam String name) {
+    public ResponseEntity<?> checkTagNameAvailability(@RequestParam String name) {
         try {
             boolean available = tagService.isTagNameAvailable(name);
-            return new ResponseEntity<>(available, HttpStatus.OK);
+            return ResponseEntity.ok(available);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to check tag name: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

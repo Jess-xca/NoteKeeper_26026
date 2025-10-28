@@ -1,5 +1,7 @@
 package com.notekeeper.notekeeper.controller;
 
+import com.notekeeper.notekeeper.dto.PageDTO;
+import com.notekeeper.notekeeper.mapper.DTOMapper;
 import com.notekeeper.notekeeper.model.Page;
 import com.notekeeper.notekeeper.service.PageService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/pages")
@@ -17,256 +20,356 @@ public class PageController {
     @Autowired
     private PageService pageService;
 
-    // CREATE
+    @Autowired
+    private DTOMapper dtoMapper;
+
     @PostMapping
-    public ResponseEntity<Page> createPage(@RequestBody Page page) {
+    public ResponseEntity<?> createPage(@RequestBody Page page) {
         try {
-            Page createdPage = pageService.createPage(page);
-            return new ResponseEntity<>(createdPage, HttpStatus.CREATED);
+            String result = pageService.createPage(page);
+            if (result.startsWith("error:")) {
+                return new ResponseEntity<>(result, HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+            Page createdPage = pageService.getPageById(result);
+            return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toPageDTO(createdPage));
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to create page: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @PostMapping("/quick-note")
-    public ResponseEntity<Page> createQuickNote(
+    public ResponseEntity<?> createQuickNote(
             @RequestParam String userId,
             @RequestParam String title,
             @RequestParam String content) {
         try {
-            Page quickNote = pageService.createQuickNote(userId, title, content);
-            return new ResponseEntity<>(quickNote, HttpStatus.CREATED);
+            String result = pageService.createQuickNote(userId, title, content);
+
+            if (result.equals("user not found")) {
+                return new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND);
+            } else if (result.equals("inbox not found")) {
+                return new ResponseEntity<>("Inbox workspace not found", HttpStatus.NOT_FOUND);
+            } else if (result.startsWith("error:")) {
+                return new ResponseEntity<>(result, HttpStatus.INTERNAL_SERVER_ERROR);
+            } else {
+                Page quickNote = pageService.getPageById(result);
+                return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toPageDTO(quickNote));
+            }
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to create quick note: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // READ
     @GetMapping("/{id}")
-    public ResponseEntity<Page> getPageById(@PathVariable String id) {
+    public ResponseEntity<?> getPageById(@PathVariable String id) {
         try {
             Page page = pageService.getPageById(id);
-            return new ResponseEntity<>(page, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+            if (page == null) {
+                return new ResponseEntity<>("Page not found", HttpStatus.NOT_FOUND);
+            }
+            return ResponseEntity.ok(dtoMapper.toPageDTO(page));
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch page: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping
-    public ResponseEntity<List<Page>> getAllPages() {
+    public ResponseEntity<?> getAllPages() {
         try {
             List<Page> pages = pageService.getAllPages();
-            return new ResponseEntity<>(pages, HttpStatus.OK);
+            List<PageDTO> pageDTOs = pages.stream()
+                    .map(dtoMapper::toPageDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(pageDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Page>> getPagesByUser(@PathVariable String userId) {
+    public ResponseEntity<?> getPagesByUser(@PathVariable String userId) {
         try {
             List<Page> pages = pageService.getPagesByUser(userId);
-            return new ResponseEntity<>(pages, HttpStatus.OK);
+            List<PageDTO> pageDTOs = pages.stream()
+                    .map(dtoMapper::toPageDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(pageDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch user pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/workspace/{workspaceId}")
-    public ResponseEntity<List<Page>> getPagesByWorkspace(@PathVariable String workspaceId) {
+    public ResponseEntity<?> getPagesByWorkspace(@PathVariable String workspaceId) {
         try {
             List<Page> pages = pageService.getPagesByWorkspace(workspaceId);
-            return new ResponseEntity<>(pages, HttpStatus.OK);
+            List<PageDTO> pageDTOs = pages.stream()
+                    .map(dtoMapper::toPageDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(pageDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch workspace pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/favorites/{userId}")
-    public ResponseEntity<List<Page>> getFavoritePages(@PathVariable String userId) {
+    public ResponseEntity<?> getFavoritePages(@PathVariable String userId) {
         try {
             List<Page> pages = pageService.getFavoritePages(userId);
-            return new ResponseEntity<>(pages, HttpStatus.OK);
+            List<PageDTO> pageDTOs = pages.stream()
+                    .map(dtoMapper::toPageDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(pageDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch favorite pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/archived/{userId}")
-    public ResponseEntity<List<Page>> getArchivedPages(@PathVariable String userId) {
+    public ResponseEntity<?> getArchivedPages(@PathVariable String userId) {
         try {
             List<Page> pages = pageService.getArchivedPages(userId);
-            return new ResponseEntity<>(pages, HttpStatus.OK);
+            List<PageDTO> pageDTOs = pages.stream()
+                    .map(dtoMapper::toPageDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(pageDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch archived pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/inbox/{userId}")
-    public ResponseEntity<List<Page>> getInboxPages(@PathVariable String userId) {
+    public ResponseEntity<?> getInboxPages(@PathVariable String userId) {
         try {
             List<Page> pages = pageService.getInboxPages(userId);
-            return new ResponseEntity<>(pages, HttpStatus.OK);
+            List<PageDTO> pageDTOs = pages.stream()
+                    .map(dtoMapper::toPageDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(pageDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch inbox pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/recent/{userId}")
-    public ResponseEntity<List<Page>> getRecentPages(@PathVariable String userId) {
+    public ResponseEntity<?> getRecentPages(@PathVariable String userId) {
         try {
             List<Page> pages = pageService.getRecentPages(userId);
-            return new ResponseEntity<>(pages, HttpStatus.OK);
+            List<PageDTO> pageDTOs = pages.stream()
+                    .map(dtoMapper::toPageDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(pageDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch recent pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<Page>> searchPages(@RequestParam String keyword) {
+    public ResponseEntity<?> searchPages(@RequestParam String keyword) {
         try {
             List<Page> pages = pageService.searchPages(keyword);
-            return new ResponseEntity<>(pages, HttpStatus.OK);
+            List<PageDTO> pageDTOs = pages.stream()
+                    .map(dtoMapper::toPageDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(pageDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to search pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/search/user/{userId}")
-    public ResponseEntity<List<Page>> searchUserPages(
+    public ResponseEntity<?> searchUserPages(
             @PathVariable String userId,
             @RequestParam String keyword) {
         try {
             List<Page> pages = pageService.searchUserPages(userId, keyword);
-            return new ResponseEntity<>(pages, HttpStatus.OK);
+            List<PageDTO> pageDTOs = pages.stream()
+                    .map(dtoMapper::toPageDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(pageDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to search user pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // UPDATE
     @PutMapping("/{id}")
-    public ResponseEntity<Page> updatePage(
+    public ResponseEntity<?> updatePage(
             @PathVariable String id,
             @RequestBody Page pageDetails) {
         try {
-            Page updatedPage = pageService.updatePage(id, pageDetails);
-            return new ResponseEntity<>(updatedPage, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+            String result = pageService.updatePage(id, pageDetails);
+
+            if (result.equals("not found")) {
+                return new ResponseEntity<>("Page not found", HttpStatus.NOT_FOUND);
+            } else {
+                Page updatedPage = pageService.getPageById(id);
+                return ResponseEntity.ok(dtoMapper.toPageDTO(updatedPage));
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to update page: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @PutMapping("/{id}/toggle-favorite")
-    public ResponseEntity<Page> toggleFavorite(@PathVariable String id) {
+    public ResponseEntity<?> toggleFavorite(@PathVariable String id) {
         try {
-            Page page = pageService.toggleFavorite(id);
-            return new ResponseEntity<>(page, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+            String result = pageService.toggleFavorite(id);
+
+            if (result.equals("not found")) {
+                return new ResponseEntity<>("Page not found", HttpStatus.NOT_FOUND);
+            } else {
+                Page page = pageService.getPageById(id);
+                return ResponseEntity.ok(dtoMapper.toPageDTO(page));
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to toggle favorite: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @PutMapping("/{id}/toggle-archive")
-    public ResponseEntity<Page> toggleArchive(@PathVariable String id) {
+    public ResponseEntity<?> toggleArchive(@PathVariable String id) {
         try {
-            Page page = pageService.toggleArchive(id);
-            return new ResponseEntity<>(page, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+            String result = pageService.toggleArchive(id);
+
+            if (result.equals("not found")) {
+                return new ResponseEntity<>("Page not found", HttpStatus.NOT_FOUND);
+            } else {
+                Page page = pageService.getPageById(id);
+                return ResponseEntity.ok(dtoMapper.toPageDTO(page));
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to toggle archive: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @PutMapping("/{id}/move")
-    public ResponseEntity<Page> movePage(
+    public ResponseEntity<?> movePage(
             @PathVariable String id,
             @RequestParam String workspaceId) {
         try {
-            Page page = pageService.movePage(id, workspaceId);
-            return new ResponseEntity<>(page, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
+            String result = pageService.movePage(id, workspaceId);
+
+            if (result.equals("page not found")) {
+                return new ResponseEntity<>("Page not found", HttpStatus.NOT_FOUND);
+            } else if (result.equals("workspace not found")) {
+                return new ResponseEntity<>("Workspace not found", HttpStatus.NOT_FOUND);
+            } else {
+                Page page = pageService.getPageById(id);
+                return ResponseEntity.ok(dtoMapper.toPageDTO(page));
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to move page: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // DELETE
     @DeleteMapping("/{id}")
-    public ResponseEntity<HttpStatus> deletePage(@PathVariable String id) {
+    public ResponseEntity<?> deletePage(@PathVariable String id) {
         try {
-            pageService.deletePage(id);
-            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            String result = pageService.deletePage(id);
+
+            if (result.equals("not found")) {
+                return new ResponseEntity<>("Page not found", HttpStatus.NOT_FOUND);
+            } else {
+                return new ResponseEntity<>("Page deleted successfully", HttpStatus.OK);
+            }
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to delete page: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // SORTING & PAGINATION
     @GetMapping("/user/{userId}/sorted")
-    public ResponseEntity<List<Page>> getUserPagesSorted(
+    public ResponseEntity<?> getUserPagesSorted(
             @PathVariable String userId,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String direction) {
         try {
             List<Page> pages = pageService.getUserPagesSorted(userId, sortBy, direction);
-            return new ResponseEntity<>(pages, HttpStatus.OK);
+            List<PageDTO> pageDTOs = pages.stream()
+                    .map(dtoMapper::toPageDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(pageDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to sort pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/paginated")
-    public ResponseEntity<org.springframework.data.domain.Page<Page>> getPagesPaginated(
+    public ResponseEntity<?> getPagesPaginated(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         try {
             org.springframework.data.domain.Page<Page> pages = pageService.getPagesPaginated(page, size);
-            return new ResponseEntity<>(pages, HttpStatus.OK);
+            org.springframework.data.domain.Page<PageDTO> pageDTOs = pages.map(dtoMapper::toPageDTO);
+            return ResponseEntity.ok(pageDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch paginated pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/user/{userId}/paginated")
-    public ResponseEntity<org.springframework.data.domain.Page<Page>> getUserPagesPaginated(
+    public ResponseEntity<?> getUserPagesPaginated(
             @PathVariable String userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         try {
             org.springframework.data.domain.Page<Page> pages = pageService.getUserPagesPaginated(userId, page, size);
-            return new ResponseEntity<>(pages, HttpStatus.OK);
+            org.springframework.data.domain.Page<PageDTO> pageDTOs = pages.map(dtoMapper::toPageDTO);
+            return ResponseEntity.ok(pageDTOs);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to fetch user pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    // STATISTICS
     @GetMapping("/count/user/{userId}")
-    public ResponseEntity<Long> countUserPages(@PathVariable String userId) {
+    public ResponseEntity<?> countUserPages(@PathVariable String userId) {
         try {
             long count = pageService.countUserPages(userId);
-            return new ResponseEntity<>(count, HttpStatus.OK);
+            return ResponseEntity.ok(count);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to count pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/count/workspace/{workspaceId}")
-    public ResponseEntity<Long> countWorkspacePages(@PathVariable String workspaceId) {
+    public ResponseEntity<?> countWorkspacePages(@PathVariable String workspaceId) {
         try {
             long count = pageService.countWorkspacePages(workspaceId);
-            return new ResponseEntity<>(count, HttpStatus.OK);
+            return ResponseEntity.ok(count);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to count pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @GetMapping("/count/favorites/{userId}")
-    public ResponseEntity<Long> countFavoritePages(@PathVariable String userId) {
+    public ResponseEntity<?> countFavoritePages(@PathVariable String userId) {
         try {
             long count = pageService.countFavoritePages(userId);
-            return new ResponseEntity<>(count, HttpStatus.OK);
+            return ResponseEntity.ok(count);
         } catch (Exception e) {
-            return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("Failed to count favorite pages: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

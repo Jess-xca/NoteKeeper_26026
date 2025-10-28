@@ -1,5 +1,6 @@
 package com.notekeeper.notekeeper.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 
 public class UserDTO {
@@ -12,15 +13,18 @@ public class UserDTO {
     private UserProfileDTO profile;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
 
     public UserDTO() {
     }
 
-    public UserDTO(String id, String username, String email, String firstName, String lastName,
+    public UserDTO(String id, String username, String email, String password, String firstName, String lastName,
             LocationDTO location, UserProfileDTO profile, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.username = username;
         this.email = email;
+        this.password = password;
         this.firstName = firstName;
         this.lastName = lastName;
         this.location = location;
@@ -91,6 +95,14 @@ public class UserDTO {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public LocalDateTime getUpdatedAt() {

@@ -52,6 +52,10 @@ public class DTOMapper {
         User user = new User();
         user.setUsername(dto.getUsername());
         user.setEmail(dto.getEmail());
+        // map password from DTO to entity so JPA non-null constraint is satisfied
+        if (dto.getPassword() != null) {
+            user.setPassword(dto.getPassword());
+        }
         user.setFirstName(dto.getFirstName());
         user.setLastName(dto.getLastName());
         // Location and profile can be set if needed, but usually handled elsewhere
@@ -77,6 +81,17 @@ public class DTOMapper {
             parentDTO.setCode(location.getParent().getCode());
             parentDTO.setType(location.getParent().getType());
             parentDTO.setCreatedAt(location.getParent().getCreatedAt());
+            // also include the parent's parent (grandparent) one level up, e.g., province
+            if (location.getParent().getParent() != null) {
+                Location parentParent = location.getParent().getParent();
+                LocationDTO grandParent = new LocationDTO();
+                grandParent.setId(parentParent.getId());
+                grandParent.setName(parentParent.getName());
+                grandParent.setCode(parentParent.getCode());
+                grandParent.setType(parentParent.getType());
+                grandParent.setCreatedAt(parentParent.getCreatedAt());
+                parentDTO.setParent(grandParent);
+            }
             dto.setParent(parentDTO);
         }
 
