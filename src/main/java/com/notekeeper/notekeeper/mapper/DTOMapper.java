@@ -1,0 +1,151 @@
+package com.notekeeper.notekeeper.mapper;
+
+import com.notekeeper.notekeeper.dto.*;
+import com.notekeeper.notekeeper.model.*;
+import org.springframework.stereotype.Component;
+import java.util.stream.Collectors;
+
+@Component
+public class DTOMapper {
+
+    // User Mappings
+    public UserDTO toUserDTO(User user) {
+        if (user == null)
+            return null;
+
+        UserDTO dto = new UserDTO();
+        dto.setId(user.getId());
+        dto.setUsername(user.getUsername());
+        dto.setEmail(user.getEmail());
+        dto.setFirstName(user.getFirstName());
+        dto.setLastName(user.getLastName());
+        dto.setCreatedAt(user.getCreatedAt());
+        dto.setUpdatedAt(user.getUpdatedAt());
+
+        if (user.getLocation() != null) {
+            dto.setLocation(toLocationDTO(user.getLocation()));
+        }
+
+        if (user.getProfile() != null) {
+            dto.setProfile(toUserProfileDTO(user.getProfile()));
+        }
+
+        return dto;
+    }
+
+    public UserSummaryDTO toUserSummaryDTO(User user) {
+        if (user == null)
+            return null;
+
+        return new UserSummaryDTO(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName());
+    }
+
+    // Location Mappings
+    public LocationDTO toLocationDTO(Location location) {
+        if (location == null)
+            return null;
+
+        LocationDTO dto = new LocationDTO();
+        dto.setId(location.getId());
+        dto.setName(location.getName());
+        dto.setCode(location.getCode());
+        dto.setType(location.getType());
+        dto.setCreatedAt(location.getCreatedAt());
+
+        if (location.getParent() != null) {
+            LocationDTO parentDTO = new LocationDTO();
+            parentDTO.setId(location.getParent().getId());
+            parentDTO.setName(location.getParent().getName());
+            parentDTO.setCode(location.getParent().getCode());
+            parentDTO.setType(location.getParent().getType());
+            parentDTO.setCreatedAt(location.getParent().getCreatedAt());
+            dto.setParent(parentDTO);
+        }
+
+        return dto;
+    }
+
+    // UserProfile Mappings
+    public UserProfileDTO toUserProfileDTO(UserProfile profile) {
+        if (profile == null)
+            return null;
+
+        return new UserProfileDTO(
+                profile.getId(),
+                profile.getBio(),
+                profile.getAvatarUrl(),
+                profile.getTheme(),
+                profile.getLanguage(),
+                profile.getUpdatedAt());
+    }
+
+    // Workspace Mappings
+    public WorkspaceDTO toWorkspaceDTO(Workspace workspace) {
+        if (workspace == null)
+            return null;
+
+        return new WorkspaceDTO(
+                workspace.getId(),
+                workspace.getName(),
+                workspace.getDescription(),
+                workspace.getIcon(),
+                toUserSummaryDTO(workspace.getOwner()),
+                workspace.getIsDefault(),
+                workspace.getCreatedAt());
+    }
+
+    public WorkspaceSummaryDTO toWorkspaceSummaryDTO(Workspace workspace) {
+        if (workspace == null)
+            return null;
+
+        return new WorkspaceSummaryDTO(
+                workspace.getId(),
+                workspace.getName(),
+                workspace.getIcon());
+    }
+
+    // Page Mappings
+    public PageDTO toPageDTO(Page page) {
+        if (page == null)
+            return null;
+
+        PageDTO dto = new PageDTO();
+        dto.setId(page.getId());
+        dto.setTitle(page.getTitle());
+        dto.setContent(page.getContent());
+        dto.setIcon(page.getIcon());
+        dto.setCoverImage(page.getCoverImage());
+        dto.setIsFavorite(page.getIsFavorite());
+        dto.setIsArchived(page.getIsArchived());
+        dto.setUser(toUserSummaryDTO(page.getUser()));
+        dto.setWorkspace(toWorkspaceSummaryDTO(page.getWorkspace()));
+        dto.setCreatedAt(page.getCreatedAt());
+        dto.setUpdatedAt(page.getUpdatedAt());
+
+        // Map tags
+        if (page.getPageTags() != null && !page.getPageTags().isEmpty()) {
+            dto.setTags(page.getPageTags().stream()
+                    .map(pt -> toTagDTO(pt.getTag()))
+                    .collect(Collectors.toList()));
+        }
+
+        return dto;
+    }
+
+    // Tag Mappings
+    public TagDTO toTagDTO(Tag tag) {
+        if (tag == null)
+            return null;
+
+        return new TagDTO(
+                tag.getId(),
+                tag.getName(),
+                tag.getColor(),
+                tag.getCreatedAt());
+    }
+}
