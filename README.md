@@ -1,27 +1,14 @@
 ﻿# NoteKeeper
 
-NoteKeeper is a lightweight note-taking web application built with Spring Boot and JPA/Hibernate. It provides a REST API for managing users, profiles, locations, workspaces, pages (notes), tags and more. The project is designed as a small, extensible backend you can use as a starter for personal productivity applications.
-
-Table of contents
-
-- [Features](#features)
-- [Getting started](#getting-started)
-- [Running the app](#running-the-app)
-- [Build](#build)
-- [API documentation](#api-documentation)
-- [Code review notes](#code-review-notes)
-- [Testing](#testing)
-- [Contributing](#contributing)
-- [License](#license)
+NoteKeeper is a lightweight note-taking web application built with Spring Boot, Spring Data JPA (Hibernate), and follows a layered architecture (controller → service → repository). It provides a REST API for managing users, profiles, locations, workspaces, pages (notes), tags and more. The project is designed as a small, extensible backend you can use as a starter for personal productivity applications.
 
 ## Features
 
-- REST API for Users, Profiles, Locations, Workspaces, Pages and Tags
-- DTO mapping and clean service layer
-- Location hierarchy (province/district/sector etc.) with code-based queries
-- Pagination, search and sorting support for collection endpoints
-  -- Clean layered design (controllers → services → repositories)
-  -- DTO mapping and `DTOMapper` to separate API from persistence models
+- RESTful endpoints for core resources: Users, Profiles, Locations, Workspaces, Pages, Tags
+- DTO-based API layer with `DTOMapper` to decouple persistence models from API models
+- Location hierarchy support (province → district → sector etc.) with code-prefix queries
+- Collection features: pagination, sorting, case-insensitive search, and filtering
+- Simple initialization (data loader) and sensible defaults (Inbox workspace per user)
 
 ## Getting started
 
@@ -100,51 +87,6 @@ mvn test
 
 During active development you can use `-DskipTests` for faster builds.
 
-## Contributing
-
-# NoteKeeper — README
-
-## Overview
-
-NoteKeeper is a backend REST service for a note-taking application. It provides CRUD operations and collection features for Users, Profiles, Locations, Workspaces, Pages (notes) and Tags. The project is implemented with Spring Boot, Spring Data JPA (Hibernate), and follows a layered architecture (controller → service → repository). The codebase is intended to be small, well-structured, and easy to review.
-
-## Key features
-
-- RESTful endpoints for core resources: Users, Profiles, Locations, Workspaces, Pages, Tags
-- DTO-based API layer with `DTOMapper` to decouple persistence models from API models
-- Location hierarchy support (province → district → sector etc.) with code-prefix queries
-- Collection features: pagination, sorting, case-insensitive search, and filtering
-- Simple initialization (data loader) and sensible defaults (Inbox workspace per user)
-
-## Quick start
-
-Prerequisites
-
-- Java 17+
-- Maven 3.6+
-
-Clone and run
-
-```powershell
-git clone <repo-url>
-cd notekeeper
-mvn -DskipTests package
-mvn spring-boot:run
-```
-
-API base
-
-- http://localhost:8080/api
-
-Primary endpoints (examples)
-
-- `GET /api/users`
-- `POST /api/users`
-- `GET /api/pages`
-- `POST /api/pages`
-- `GET /api/locations`
-- `POST /api/locations`
-
 ## Project structure
 
 - `controller/` — REST controllers and HTTP mappings
@@ -214,4 +156,5 @@ Tag
 
 - Unit and integration tests in `src/test/java` (run with `mvn test`).
 - Build artifact: `target/notekeeper-0.0.1-SNAPSHOT.jar`.
+
 
