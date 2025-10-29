@@ -27,6 +27,9 @@ public class DataLoader implements CommandLineRunner {
     @Autowired
     private TagRepository tagRepository;
 
+    @Autowired
+    private WorkspaceMemberRepository workspaceMemberRepository;
+
     @Override
     public void run(String... args) throws Exception {
         if (locationRepository.count() == 0) {
@@ -39,6 +42,7 @@ public class DataLoader implements CommandLineRunner {
             loadWorkspaces();
             loadTags();
             loadPages();
+            loadWorkspaceMembers();
 
             System.out.println("\n========================================");
             System.out.println(" Sample data loaded successfully!");
@@ -49,6 +53,7 @@ public class DataLoader implements CommandLineRunner {
             System.out.println("   - Workspaces: " + workspaceRepository.count());
             System.out.println("   - Pages: " + pageRepository.count());
             System.out.println("   - Tags: " + tagRepository.count());
+            System.out.println("   - Workspace Members: " + workspaceMemberRepository.count());
             System.out.println("========================================\n");
         }
     }
@@ -305,5 +310,33 @@ public class DataLoader implements CommandLineRunner {
         }
 
         System.out.println("Loaded " + pageRepository.count() + " pages");
+    }
+
+    private void loadWorkspaceMembers() {
+        System.out.println("👥 Loading workspace members...");
+
+        // Get users and workspaces
+        User derrick = userRepository.findByUsername("derrick_mutabazi").orElse(null);
+        User ketsia = userRepository.findByUsername("ketsia_keza").orElse(null);
+        User alice = userRepository.findByUsername("alice_uwase").orElse(null);
+
+        // Get workspaces
+        Workspace derrickWork = workspaceRepository.findByOwnerId(derrick.getId()).stream()
+                .filter(w -> !w.getIsDefault()).findFirst().orElse(null);
+        Workspace ketsiaPersonal = workspaceRepository.findByOwnerId(ketsia.getId()).stream()
+                .filter(w -> !w.getIsDefault()).findFirst().orElse(null);
+
+        // Add members to workspaces
+        if (derrickWork != null && ketsia != null) {
+            WorkspaceMember member1 = new WorkspaceMember(derrickWork, ketsia, WorkspaceRole.EDITOR);
+            workspaceMemberRepository.save(member1);
+        }
+
+        if (ketsiaPersonal != null && alice != null) {
+            WorkspaceMember member2 = new WorkspaceMember(ketsiaPersonal, alice, WorkspaceRole.VIEWER);
+            workspaceMemberRepository.save(member2);
+        }
+
+        System.out.println("Loaded " + workspaceMemberRepository.count() + " workspace members");
     }
 }
