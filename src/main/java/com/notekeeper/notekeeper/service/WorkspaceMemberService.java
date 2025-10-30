@@ -67,7 +67,7 @@ public class WorkspaceMemberService {
             return "cannot remove owner";
         }
 
-        workspaceMemberRepository.deleteByWorkspaceIdAndUserId(workspaceId, userId);
+        workspaceMemberRepository.delete(member);
         return "success";
     }
 
