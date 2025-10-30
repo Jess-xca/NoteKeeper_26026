@@ -20,8 +20,9 @@ public class WorkspaceMember {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, length = 20)
-    private String role = "VIEWER";
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private WorkspaceRole role = WorkspaceRole.VIEWER;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime joinedAt;
@@ -29,10 +30,14 @@ public class WorkspaceMember {
     public WorkspaceMember() {
     }
 
-    public WorkspaceMember(Workspace workspace, User user, String role) {
+    public WorkspaceMember(Workspace workspace, User user, WorkspaceRole role) {
         this.workspace = workspace;
         this.user = user;
         this.role = role;
+    }
+
+    public WorkspaceMember(Workspace workspace, User user, String role) {
+        this(workspace, user, WorkspaceRole.valueOf(role.toUpperCase()));
     }
 
     @PrePersist
@@ -61,12 +66,16 @@ public class WorkspaceMember {
         this.user = user;
     }
 
-    public String getRole() {
+    public WorkspaceRole getRole() {
         return role;
     }
 
-    public void setRole(String role) {
+    public void setRole(WorkspaceRole role) {
         this.role = role;
+    }
+
+    public void setRole(String role) {
+        this.role = WorkspaceRole.valueOf(role.toUpperCase());
     }
 
     public LocalDateTime getJoinedAt() {

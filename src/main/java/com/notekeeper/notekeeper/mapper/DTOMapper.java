@@ -45,20 +45,18 @@ public class DTOMapper {
                 user.getLastName());
     }
 
-    // Map UserDTO to User entity (for input)
+    // Map UserDTO to User entity
     public User toUserEntity(UserDTO dto) {
         if (dto == null)
             return null;
         User user = new User();
         user.setUsername(dto.getUsername());
         user.setEmail(dto.getEmail());
-        // map password from DTO to entity so JPA non-null constraint is satisfied
         if (dto.getPassword() != null) {
             user.setPassword(dto.getPassword());
         }
         user.setFirstName(dto.getFirstName());
         user.setLastName(dto.getLastName());
-        // Location and profile can be set if needed, but usually handled elsewhere
         return user;
     }
 
@@ -81,7 +79,6 @@ public class DTOMapper {
             parentDTO.setCode(location.getParent().getCode());
             parentDTO.setType(location.getParent().getType());
             parentDTO.setCreatedAt(location.getParent().getCreatedAt());
-            // also include the parent's parent (grandparent) one level up, e.g., province
             if (location.getParent().getParent() != null) {
                 Location parentParent = location.getParent().getParent();
                 LocationDTO grandParent = new LocationDTO();
@@ -175,5 +172,20 @@ public class DTOMapper {
                 tag.getName(),
                 tag.getColor(),
                 tag.getCreatedAt());
+    }
+
+    // WorkspaceMember Mappings
+    public WorkspaceMemberDTO toWorkspaceMemberDTO(WorkspaceMember member) {
+        if (member == null)
+            return null;
+
+        return new WorkspaceMemberDTO(
+                member.getId(),
+                member.getWorkspace().getId(),
+                member.getUser().getId(),
+                toUserSummaryDTO(member.getUser()),
+                toWorkspaceSummaryDTO(member.getWorkspace()),
+                member.getRole().name(),
+                member.getJoinedAt());
     }
 }
