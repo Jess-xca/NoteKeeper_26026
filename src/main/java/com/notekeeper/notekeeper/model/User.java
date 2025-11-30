@@ -2,6 +2,8 @@ package com.notekeeper.notekeeper.model;
 
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +32,18 @@ public class User {
 
     @Column(nullable = false, length = 50)
     private String lastName;
+
+    @Column(length = 20)
+    private String phoneNumber;
+
+    @Column
+    private LocalDate dateOfBirth;
+
+    @Column(length = 10)
+    private String gender; // MALE, FEMALE, OTHER
+
+    @Column(length = 20)
+    private String role = "USER"; // USER, ADMIN, EDITOR
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "location_id")
@@ -115,6 +129,38 @@ public class User {
 
     public void setLastName(String lastName) {
         this.lastName = lastName;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public LocalDate getDateOfBirth() {
+        return dateOfBirth;
+    }
+
+    public void setDateOfBirth(LocalDate dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 
     public Location getLocation() {

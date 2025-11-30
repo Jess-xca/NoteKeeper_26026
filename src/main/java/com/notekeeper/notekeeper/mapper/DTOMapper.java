@@ -19,6 +19,10 @@ public class DTOMapper {
         dto.setEmail(user.getEmail());
         dto.setFirstName(user.getFirstName());
         dto.setLastName(user.getLastName());
+        dto.setPhoneNumber(user.getPhoneNumber());
+        dto.setDateOfBirth(user.getDateOfBirth());
+        dto.setGender(user.getGender());
+        dto.setRole(user.getRole());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setUpdatedAt(user.getUpdatedAt());
 
@@ -33,6 +37,32 @@ public class DTOMapper {
         return dto;
     }
 
+    // Map UserDTO to User entity
+    public User toUserEntity(UserDTO dto) {
+        if (dto == null)
+            return null;
+
+        User user = new User();
+        if (dto.getUsername() != null)
+            user.setUsername(dto.getUsername());
+        if (dto.getEmail() != null)
+            user.setEmail(dto.getEmail());
+        if (dto.getFirstName() != null)
+            user.setFirstName(dto.getFirstName());
+        if (dto.getLastName() != null)
+            user.setLastName(dto.getLastName());
+        if (dto.getPhoneNumber() != null)
+            user.setPhoneNumber(dto.getPhoneNumber());
+        if (dto.getDateOfBirth() != null)
+            user.setDateOfBirth(dto.getDateOfBirth());
+        if (dto.getGender() != null)
+            user.setGender(dto.getGender());
+        if (dto.getRole() != null)
+            user.setRole(dto.getRole());
+
+        return user;
+    }
+
     public UserSummaryDTO toUserSummaryDTO(User user) {
         if (user == null)
             return null;
@@ -43,21 +73,6 @@ public class DTOMapper {
                 user.getEmail(),
                 user.getFirstName(),
                 user.getLastName());
-    }
-
-    // Map UserDTO to User entity
-    public User toUserEntity(UserDTO dto) {
-        if (dto == null)
-            return null;
-        User user = new User();
-        user.setUsername(dto.getUsername());
-        user.setEmail(dto.getEmail());
-        if (dto.getPassword() != null) {
-            user.setPassword(dto.getPassword());
-        }
-        user.setFirstName(dto.getFirstName());
-        user.setLastName(dto.getLastName());
-        return user;
     }
 
     // Location Mappings

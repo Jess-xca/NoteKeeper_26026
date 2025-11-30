@@ -1,6 +1,7 @@
 package com.notekeeper.notekeeper.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class UserDTO {
@@ -9,10 +10,15 @@ public class UserDTO {
     private String email;
     private String firstName;
     private String lastName;
+    private String phoneNumber;
+    private LocalDate dateOfBirth;
+    private String gender;
+    private String role;
     private LocationDTO location;
     private UserProfileDTO profile;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
@@ -20,6 +26,7 @@ public class UserDTO {
     }
 
     public UserDTO(String id, String username, String email, String password, String firstName, String lastName,
+            String phoneNumber, LocalDate dateOfBirth, String gender, String role,
             LocationDTO location, UserProfileDTO profile, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.username = username;
@@ -27,12 +34,17 @@ public class UserDTO {
         this.password = password;
         this.firstName = firstName;
         this.lastName = lastName;
+        this.phoneNumber = phoneNumber;
+        this.dateOfBirth = dateOfBirth;
+        this.gender = gender;
+        this.role = role;
         this.location = location;
         this.profile = profile;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
+    // Getters and Setters
     public String getId() {
         return id;
     }
@@ -57,6 +69,14 @@ public class UserDTO {
         this.email = email;
     }
 
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
     public String getFirstName() {
         return firstName;
     }
@@ -71,6 +91,38 @@ public class UserDTO {
 
     public void setLastName(String lastName) {
         this.lastName = lastName;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
+    public LocalDate getDateOfBirth() {
+        return dateOfBirth;
+    }
+
+    public void setDateOfBirth(LocalDate dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 
     public LocationDTO getLocation() {
@@ -95,14 +147,6 @@ public class UserDTO {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 
     public LocalDateTime getUpdatedAt() {
