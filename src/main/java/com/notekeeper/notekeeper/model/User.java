@@ -64,6 +64,10 @@ public class User {
     @JsonIgnore
     private List<Workspace> workspaces = new ArrayList<>();
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @JsonIgnore
+    private List<WorkspaceMember> workspaceMembers = new ArrayList<>();
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
