@@ -43,6 +43,8 @@ public interface LocationRepository extends JpaRepository<Location, String> {
 
     boolean existsByParentId(String parentId);
 
+    boolean existsByType(LocationType type);
+
     // Sorting
     List<Location> findAllByOrderByNameAsc();
 

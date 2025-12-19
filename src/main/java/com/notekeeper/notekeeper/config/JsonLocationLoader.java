@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 public class JsonLocationLoader implements CommandLineRunner {
@@ -23,10 +24,31 @@ public class JsonLocationLoader implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        if (locationRepository.count() == 0) {
-            System.out.println("Processing Location.json...");
+        boolean hasData = locationRepository.count() > 0;
+        boolean hasVillages = locationRepository.existsByType(LocationType.VILLAGE);
+
+        if (hasData && !hasVillages) {
+            System.out.println("⚠️ Detected incomplete location data (missing Villages).");
+            System.out.println("♻️ Cleaning up old locations to reload full hierarchy...");
+            try {
+                // Warning: This deletes all locations. 
+                // If users have foreign keys to these locations, this might fail unless ON DELETE SET NULL is configured,
+                // or if we break the links first. For now, we attempt to delete.
+                locationRepository.deleteAllInBatch(); 
+                System.out.println("✅ Old locations deleted.");
+                hasData = false;
+            } catch (Exception e) {
+                System.err.println("❌ Failed to delete old locations: " + e.getMessage());
+                System.err.println("👉 Please manually clear the 'locations' table to enable reloading.");
+            }
+        }
+
+        if (!hasData) {
+            System.out.println("Processing Location.json (Full Hierarchy)...");
+            long startTime = System.currentTimeMillis();
             loadLocationsFromJson();
-            System.out.println("Locations loaded successfully.");
+            long duration = System.currentTimeMillis() - startTime;
+            System.out.println("Locations loaded successfully in " + duration + "ms.");
         }
     }
 
@@ -35,59 +57,112 @@ public class JsonLocationLoader implements CommandLineRunner {
         InputStream inputStream = new ClassPathResource("Location.json").getInputStream();
         List<Map<String, Object>> rawLocations = mapper.readValue(inputStream, new TypeReference<List<Map<String, Object>>>(){});
 
-        // Use Maps to cache created locations to avoid DB lookups
-        Map<String, Location> provinces = new HashMap<>(); // key: code
-        Map<String, Location> districts = new HashMap<>();
-        Map<String, Location> sectors = new HashMap<>();
+        // 1. Load Provinces
+        // Use Maps to prevent duplicates before saving
+        Map<String, Location> provinceMap = new HashMap<>();
         
-        // Processing loop
         for (Map<String, Object> entry : rawLocations) {
-            // 1. Province
-            Integer provCode = (Integer) entry.get("province_code");
-            String provName = (String) entry.get("province_name");
-            String provKey = String.valueOf(provCode);
-            
-            Location province = provinces.get(provKey);
-            if (province == null) {
-                province = new Location(provName, provKey, LocationType.PROVINCE);
-                province = locationRepository.save(province);
-                provinces.put(provKey, province);
+            String code = String.valueOf(entry.get("province_code"));
+            if (!provinceMap.containsKey(code)) {
+                String name = (String) entry.get("province_name");
+                provinceMap.put(code, new Location(name, code, LocationType.PROVINCE));
             }
-
-            // 2. District
-            Integer distCode = (Integer) entry.get("district_code");
-            String distName = (String) entry.get("district_name");
-            String distKey = String.valueOf(distCode);
-
-            Location district = districts.get(distKey);
-            if (district == null) {
-                district = new Location(distName, distKey, LocationType.DISTRICT);
-                district.setParent(province);
-                district = locationRepository.save(district);
-                districts.put(distKey, district);
-            }
-
-            // 3. Sector
-            String sectCode = (String) entry.get("sector_code");
-            String sectName = (String) entry.get("sector_name");
-            // Assuming sector_code is unique globally or combine with district if needed. 
-            // Usually valid codes are unique.
-            
-            Location sector = sectors.get(sectCode);
-            if (sector == null) {
-                sector = new Location(sectName, sectCode, LocationType.SECTOR);
-                sector.setParent(district);
-                sector = locationRepository.save(sector);
-                sectors.put(sectCode, sector);
-            }
-
-            // Note: We stop at Sector level if the frontend only supports up to Sector.
-            // If Cell/Village is needed, uncomment below.
-            // But be warned: This will increase DB size significantly and might slow down 'save' operations if not batched.
-            // Given the user said "Location.json is big won't it stop the application from running smoothly", 
-            // optimizing by only loading what's needed is a good first step.
-            // The JSON has ~200k entries (villages). Loading 200k inserts one-by-one can take time.
-            // For now, loading up to SECTOR is safe (~416 sectors).
         }
+        List<Location> savedProvinces = locationRepository.saveAll(provinceMap.values());
+        // Re-map by code with the SAVED entities (now having IDs)
+        provinceMap.clear();
+        for (Location loc : savedProvinces) {
+            provinceMap.put(loc.getCode(), loc);
+        }
+        System.out.println("Loaded " + savedProvinces.size() + " Provinces");
+
+        // 2. Load Districts
+        Map<String, Location> districtMap = new HashMap<>();
+        for (Map<String, Object> entry : rawLocations) {
+            String code = String.valueOf(entry.get("district_code"));
+            if (!districtMap.containsKey(code)) {
+                String name = (String) entry.get("district_name");
+                Location district = new Location(name, code, LocationType.DISTRICT);
+                
+                // Set Parent
+                String parentCode = String.valueOf(entry.get("province_code"));
+                district.setParent(provinceMap.get(parentCode));
+                
+                districtMap.put(code, district);
+            }
+        }
+        List<Location> savedDistricts = locationRepository.saveAll(districtMap.values());
+        districtMap.clear();
+        for (Location loc : savedDistricts) {
+            districtMap.put(loc.getCode(), loc);
+        }
+        System.out.println("Loaded " + savedDistricts.size() + " Districts");
+
+        // 3. Load Sectors
+        Map<String, Location> sectorMap = new HashMap<>();
+        for (Map<String, Object> entry : rawLocations) {
+            String code = (String) entry.get("sector_code");
+            if (!sectorMap.containsKey(code)) {
+                String name = (String) entry.get("sector_name");
+                Location sector = new Location(name, code, LocationType.SECTOR);
+                
+                String parentCode = String.valueOf(entry.get("district_code"));
+                sector.setParent(districtMap.get(parentCode));
+                
+                sectorMap.put(code, sector);
+            }
+        }
+        List<Location> savedSectors = locationRepository.saveAll(sectorMap.values());
+        // Update map for next level
+        sectorMap.clear();
+        for (Location loc : savedSectors) {
+            sectorMap.put(loc.getCode(), loc);
+        }
+        System.out.println("Loaded " + savedSectors.size() + " Sectors");
+        
+        // 4. Load Cells
+        Map<String, Location> cellMap = new HashMap<>();
+        for (Map<String, Object> entry : rawLocations) {
+            Object cellCodeObj = entry.get("cell_code");
+            String code = String.valueOf(cellCodeObj); // can be Integer or String in JSON
+            
+            if (!cellMap.containsKey(code)) {
+                String name = (String) entry.get("cell_name");
+                Location cell = new Location(name, code, LocationType.CELL);
+                
+                String parentCode = (String) entry.get("sector_code");
+                cell.setParent(sectorMap.get(parentCode));
+                
+                cellMap.put(code, cell);
+            }
+        }
+        List<Location> savedCells = locationRepository.saveAll(cellMap.values());
+        // Update map for next level
+        cellMap.clear();
+        for (Location loc : savedCells) {
+            cellMap.put(loc.getCode(), loc);
+        }
+        System.out.println("Loaded " + savedCells.size() + " Cells");
+
+        // 5. Load Villages
+        // Villages might be numerous (~15k). efficient map is needed.
+        Map<String, Location> villageMap = new HashMap<>();
+        for (Map<String, Object> entry : rawLocations) {
+            Object villageCodeObj = entry.get("village_code");
+            String code = String.valueOf(villageCodeObj); 
+            
+            if (!villageMap.containsKey(code)) {
+                String name = (String) entry.get("village_name");
+                Location village = new Location(name, code, LocationType.VILLAGE);
+                
+                String parentCode = String.valueOf(entry.get("cell_code"));
+                village.setParent(cellMap.get(parentCode));
+                
+                villageMap.put(code, village);
+            }
+        }
+        // Save in chunks if needed, but 15k is okay for saveAll usually
+        locationRepository.saveAll(villageMap.values());
+        System.out.println("Loaded " + villageMap.size() + " Villages");
     }
 }
