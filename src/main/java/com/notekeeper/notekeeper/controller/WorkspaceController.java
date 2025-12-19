@@ -83,6 +83,20 @@ public class WorkspaceController {
         }
     }
 
+    @GetMapping("/member/{userId}/shared")
+    public ResponseEntity<?> getSharedWorkspaces(@PathVariable String userId) {
+        try {
+            List<Workspace> workspaces = workspaceService.getSharedWorkspaces(userId);
+            List<WorkspaceDTO> workspaceDTOs = workspaces.stream()
+                    .map(dtoMapper::toWorkspaceDTO)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(workspaceDTOs);
+        } catch (Exception e) {
+            return new ResponseEntity<>("Failed to fetch shared workspaces: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @GetMapping("/inbox/{ownerId}")
     public ResponseEntity<?> getInboxWorkspace(@PathVariable String ownerId) {
         try {

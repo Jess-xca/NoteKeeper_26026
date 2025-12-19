@@ -1,7 +1,9 @@
 package com.notekeeper.notekeeper.service;
 
 import com.notekeeper.notekeeper.model.Workspace;
+import com.notekeeper.notekeeper.model.WorkspaceMember;
 import com.notekeeper.notekeeper.repository.WorkspaceRepository;
+import com.notekeeper.notekeeper.repository.WorkspaceMemberRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -16,6 +18,9 @@ public class WorkspaceService {
 
     @Autowired
     private WorkspaceRepository workspaceRepository;
+
+    @Autowired
+    private WorkspaceMemberRepository workspaceMemberRepository;
 
     // CREATE
     public String createWorkspace(Workspace workspace) {
@@ -39,6 +44,13 @@ public class WorkspaceService {
 
     public List<Workspace> getWorkspacesByOwner(String ownerId) {
         return workspaceRepository.findByOwnerId(ownerId);
+    }
+
+    public List<Workspace> getSharedWorkspaces(String userId) {
+        return workspaceMemberRepository.findByUserId(userId).stream()
+                .filter(member -> !member.getWorkspace().getOwner().getId().equals(userId))
+                .map(WorkspaceMember::getWorkspace)
+                .toList();
     }
 
     public Workspace getInboxWorkspace(String ownerId) {

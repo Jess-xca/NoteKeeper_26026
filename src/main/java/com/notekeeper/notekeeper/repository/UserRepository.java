@@ -53,7 +53,9 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     // Custom queries
     @Query("SELECT u FROM User u WHERE LOWER(u.firstName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-            "OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+            "OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(u.username) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%'))")
     List<User> searchUsers(@Param("keyword") String keyword);
 
     @Query("SELECT COUNT(u) FROM User u WHERE u.location.id = :locationId")

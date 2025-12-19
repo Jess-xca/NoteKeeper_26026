@@ -109,6 +109,12 @@ public class WorkspaceMemberService {
         return workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId);
     }
 
+    public WorkspaceMemberDTO getMember(String workspaceId, String userId) {
+        return workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, userId)
+                .map(dtoMapper::toWorkspaceMemberDTO)
+                .orElse(null);
+    }
+
     public boolean hasPermission(String workspaceId, String userId, String requiredRole) {
         Optional<WorkspaceMember> memberOpt = workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, userId);
         if (!memberOpt.isPresent()) {

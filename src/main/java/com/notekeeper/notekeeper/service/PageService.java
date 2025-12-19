@@ -4,6 +4,8 @@ import com.notekeeper.notekeeper.model.Page;
 import com.notekeeper.notekeeper.model.User;
 import com.notekeeper.notekeeper.model.Workspace;
 import com.notekeeper.notekeeper.repository.PageRepository;
+import com.notekeeper.notekeeper.repository.TagRepository;
+import com.notekeeper.notekeeper.repository.PageTagRepository;
 import com.notekeeper.notekeeper.repository.UserRepository;
 import com.notekeeper.notekeeper.repository.WorkspaceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,12 @@ public class PageService {
 
     @Autowired
     private WorkspaceRepository workspaceRepository;
+
+    @Autowired
+    private TagRepository tagRepository;
+
+    @Autowired
+    private PageTagRepository pageTagRepository;
 
     // CREATE
     public String createPage(Page page) {
@@ -103,6 +111,30 @@ public class PageService {
         page.setContent(pageDetails.getContent());
         page.setIcon(pageDetails.getIcon());
         page.setCoverImage(pageDetails.getCoverImage());
+
+        // Sync tags if they are provided in pageDetails
+        if (pageDetails.getPageTags() != null) {
+            // Remove existing tags that are not in the new list
+            page.getPageTags().removeIf(existingPt -> 
+                pageDetails.getPageTags().stream()
+                    .noneMatch(newPt -> newPt.getTag().getId().equals(existingPt.getTag().getId()))
+            );
+
+            // Add new tags that are not already present
+            for (com.notekeeper.notekeeper.model.PageTag newPt : pageDetails.getPageTags()) {
+                boolean exists = page.getPageTags().stream()
+                    .anyMatch(existingPt -> existingPt.getTag().getId().equals(newPt.getTag().getId()));
+                
+                if (!exists) {
+                    Optional<com.notekeeper.notekeeper.model.Tag> tagOpt = tagRepository.findById(newPt.getTag().getId());
+                    if (tagOpt.isPresent()) {
+                        com.notekeeper.notekeeper.model.PageTag pt = new com.notekeeper.notekeeper.model.PageTag(page, tagOpt.get());
+                        page.getPageTags().add(pt);
+                    }
+                }
+            }
+        }
+
         pageRepository.save(page);
         return "success";
     }

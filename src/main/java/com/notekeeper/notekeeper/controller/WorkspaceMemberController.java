@@ -114,8 +114,11 @@ public class WorkspaceMemberController {
             @PathVariable String workspaceId,
             @PathVariable String userId) {
         try {
-            boolean isMember = workspaceMemberService.isUserMember(workspaceId, userId);
-            return ResponseEntity.ok(isMember);
+            WorkspaceMemberDTO member = workspaceMemberService.getMember(workspaceId, userId);
+            if (member == null) {
+                return ResponseEntity.ok(null);
+            }
+            return ResponseEntity.ok(member);
         } catch (Exception e) {
             return new ResponseEntity<>("Failed to check membership: " + e.getMessage(),
                     HttpStatus.INTERNAL_SERVER_ERROR);
