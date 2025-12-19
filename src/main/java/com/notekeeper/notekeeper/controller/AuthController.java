@@ -14,6 +14,7 @@ import com.notekeeper.notekeeper.repository.TwoFactorCodeRepository;
 import com.notekeeper.notekeeper.service.EmailService;
 import com.notekeeper.notekeeper.model.PasswordResetToken;
 import com.notekeeper.notekeeper.model.TwoFactorCode;
+import com.notekeeper.notekeeper.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,6 +56,12 @@ public class AuthController {
     @Autowired
     private TwoFactorCodeRepository twoFactorCodeRepository;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+
     @Value("${google.client.id}")
     private String googleClientId;
     
@@ -84,25 +92,49 @@ public class AuthController {
 
             User user = userOpt.get();
 
-            // NOTE: In production, use BCrypt or similar to hash and verify passwords
-            // For now, we're doing simple string comparison (NOT SECURE!)
-            if (!user.getPassword().equals(loginRequest.getPassword())) {
+            // Verify hashed password
+            if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(new LoginResponse(false, "Invalid username or password", null, null));
             }
 
-            // Generate a simple token (in production, use JWT)
-            String token = "token_" + UUID.randomUUID().toString();
+            // Check if 2FA is enabled
+            boolean requiresTwoFactor = user.getTwoFactorEnabled() != null && user.getTwoFactorEnabled();
+
+            if (requiresTwoFactor) {
+                // Delete old codes for this user
+                twoFactorCodeRepository.deleteByUserId(user.getId());
+                
+                // Generate and send 2FA code
+                TwoFactorCode code = new TwoFactorCode(user);
+                twoFactorCodeRepository.save(code);
+                
+                System.out.println("========================================");
+                System.out.println("📧 2FA PIN for " + user.getEmail());
+                System.out.println("🔑 PIN CODE: " + code.getCode());
+                System.out.println("========================================");
+                
+                try {
+                    emailService.send2FACode(user.getEmail(), code.getCode());
+                } catch (Exception e) {
+                    System.out.println("❌ Failed to send 2FA email: " + e.getMessage());
+                }
+            }
+
+            // Generate a real JWT token
+            String token = jwtUtil.generateToken(user.getUsername());
 
             // Convert to DTO
             UserDTO userDTO = dtoMapper.toUserDTO(user);
 
-            // Return success response
+            // Return success response with 2FA flag
             LoginResponse response = new LoginResponse(
                     true,
-                    "Login successful",
+                    requiresTwoFactor ? "2FA code sent to your email" : "Login successful",
                     token,
                     userDTO);
+            
+            response.setRequiresTwoFactor(requiresTwoFactor);
 
             return ResponseEntity.ok(response);
 
@@ -157,7 +189,7 @@ public class AuthController {
             User user = new User();
             user.setUsername(registerRequest.getUsername());
             user.setEmail(registerRequest.getEmail());
-            user.setPassword(registerRequest.getPassword()); // NOTE: Hash in production with BCrypt!
+            user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
             user.setFirstName(registerRequest.getFirstName());
             user.setLastName(registerRequest.getLastName());
             user.setPhoneNumber(registerRequest.getPhoneNumber());
@@ -219,10 +251,13 @@ public class AuthController {
     @GetMapping("/verify")
     public ResponseEntity<?> verifyToken(@RequestHeader("Authorization") String token) {
         try {
-            // In a real application, verify the JWT token here
-            // For now, just check if token exists and follows our format
-            if (token != null && !token.isEmpty() && token.startsWith("token_")) {
-                return ResponseEntity.ok("Token is valid");
+            // Verify JWT token
+            if (token != null && token.startsWith("Bearer ")) {
+                String jwt = token.substring(7);
+                String username = jwtUtil.extractUsername(jwt);
+                if (username != null && !jwtUtil.isTokenExpired(jwt)) {
+                    return ResponseEntity.ok("Token is valid");
+                }
             }
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token");
         } catch (Exception e) {
@@ -233,14 +268,19 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(@RequestHeader("Authorization") String token) {
         try {
-            // In production, decode JWT token to get user ID
-            // For now, we'll just validate token format
-            if (token == null || token.isEmpty() || !token.startsWith("token_")) {
+            if (token == null || !token.startsWith("Bearer ")) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token");
             }
 
-            // This is a placeholder - in production, extract user from JWT
-            return ResponseEntity.ok("Get user from token - implement JWT first");
+            String jwt = token.substring(7);
+            String username = jwtUtil.extractUsername(jwt);
+            
+            Optional<User> userOpt = userRepository.findByUsername(username);
+            if (!userOpt.isPresent()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
+            }
+
+            return ResponseEntity.ok(dtoMapper.toUserDTO(userOpt.get()));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -376,43 +416,27 @@ public class AuthController {
     @PostMapping("/google-callback")
     public ResponseEntity<?> googleCallback(@RequestBody Map<String, String> request) {
         System.out.println("\n🔵🔵🔵 GOOGLE CALLBACK ENDPOINT HIT! 🔵🔵🔵");
-        System.out.println("Request body: " + request);
-        System.out.println("🔵 GOOGLE CALLBACK ENDPOINT CALLED!");
-        System.out.println("Request data: " + request);
         
         try {
             String code = request.get("code");
-            System.out.println("Authorization code: " + code);
-            
             if (code == null || code.trim().isEmpty()) {
-                System.out.println("❌ No authorization code provided");
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("success", false, "message", "Authorization code is required"));
             }
             
-            // REAL GOOGLE OAUTH IMPLEMENTATION
-            // Exchange authorization code for user info
-            String email;
-            String firstName;
-            String lastName;
+            String email = null;
+            String firstName = null;
+            String lastName = null;
             
             try {
                 // Exchange code for access token and get user info from Google
-                System.out.println("🔵 Exchanging code with Google for user info...");
-                
-                // Build token request to Google
                 String tokenEndpoint = "https://oauth2.googleapis.com/token";
-                String clientId = googleClientId;
-                String clientSecret = googleClientSecret;
-                String redirectUri = "http://localhost:3000/auth/google/callback";
-                
-                // Make HTTP request to Google to exchange code for tokens
                 java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
                 
                 String requestBody = "code=" + code +
-                        "&client_id=" + clientId +
-                        "&client_secret=" + clientSecret +
-                        "&redirect_uri=" + redirectUri +
+                        "&client_id=" + googleClientId +
+                        "&client_secret=" + googleClientSecret +
+                        "&redirect_uri=http://localhost:3000/auth/google/callback" +
                         "&grant_type=authorization_code";
                 
                 java.net.http.HttpRequest tokenRequest = java.net.http.HttpRequest.newBuilder()
@@ -424,24 +448,17 @@ public class AuthController {
                 java.net.http.HttpResponse<String> tokenResponse = client.send(tokenRequest, 
                         java.net.http.HttpResponse.BodyHandlers.ofString());
                 
-                System.out.println("📨 Token response status: " + tokenResponse.statusCode());
-                
                 if (tokenResponse.statusCode() != 200) {
-                    System.out.println("❌ Token exchange failed: " + tokenResponse.body());
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                             .body(Map.of("success", false, "message", "Failed to exchange code with Google"));
                 }
                 
-                // Parse token response
                 com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                java.util.Map<String, Object> tokenData = mapper.readValue(tokenResponse.body(), java.util.Map.class);
+                Map<String, Object> tokenData = mapper.readValue(tokenResponse.body(), Map.class);
                 String accessToken = (String) tokenData.get("access_token");
-                
-                System.out.println("✅ Got access token: " + accessToken.substring(0, 20) + "...");
                 
                 // Get user info from Google
                 String userInfoEndpoint = "https://www.googleapis.com/oauth2/v2/userinfo";
-                
                 java.net.http.HttpRequest userInfoRequest = java.net.http.HttpRequest.newBuilder()
                         .uri(java.net.URI.create(userInfoEndpoint))
                         .header("Authorization", "Bearer " + accessToken)
@@ -451,140 +468,81 @@ public class AuthController {
                 java.net.http.HttpResponse<String> userInfoResponse = client.send(userInfoRequest,
                         java.net.http.HttpResponse.BodyHandlers.ofString());
                 
-                System.out.println("📨 User info response status: " + userInfoResponse.statusCode());
-                
                 if (userInfoResponse.statusCode() != 200) {
-                    System.out.println("❌ User info request failed: " + userInfoResponse.body());
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                             .body(Map.of("success", false, "message", "Failed to get user info from Google"));
                 }
                 
-                // Parse user info
-                java.util.Map<String, Object> userInfo = mapper.readValue(userInfoResponse.body(), java.util.Map.class);
-                
+                Map<String, Object> userInfo = mapper.readValue(userInfoResponse.body(), Map.class);
                 email = (String) userInfo.get("email");
                 firstName = (String) userInfo.getOrDefault("given_name", "User");
                 lastName = (String) userInfo.getOrDefault("family_name", "");
-                String picture = (String) userInfo.get("picture");
-                
-                System.out.println("✅ Got real user info:");
-                System.out.println("   Email: " + email);
-                System.out.println("   Name: " + firstName + " " + lastName);
-                System.out.println("   Picture: " + picture);
                 
             } catch (Exception ex) {
-                System.out.println("❌ Error during Google OAuth: " + ex.getMessage());
-                ex.printStackTrace();
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body(Map.of("success", false, "message", "Failed to authenticate with Google: " + ex.getMessage()));
             }
             
-            System.out.println("Looking up user with email: " + email);
-            
-            // Find or create user - synchronized to prevent duplicate creation
+            // Find or create user
             User user;
             synchronized (this) {
                 Optional<User> userOpt = userRepository.findByEmail(email);
-                
                 if (userOpt.isPresent()) {
                     user = userOpt.get();
-                    System.out.println("✅ Found existing user: " + user.getUsername());
                 } else {
-                    try {
-                        System.out.println("Creating new user...");
-                        // Create new user
-                        user = new User();
-                        user.setUsername(email.split("@")[0]);
-                        user.setEmail(email);
-                        user.setPassword("google_oauth_user"); // Dummy password
-                        user.setFirstName(firstName);
-                        user.setLastName(lastName);
-                        user.setRole("USER");
-                        user = userRepository.save(user);
-                        System.out.println("✅ Created user: " + user.getUsername());
-                        
-                        // Create profile
-                        UserProfile profile = new UserProfile(user);
-                        userProfileRepository.save(profile);
-                        System.out.println("✅ Created user profile");
-                        
-                        // Create inbox
-                        Workspace inbox = new Workspace("Inbox", user, true);
-                        inbox.setDescription("Quick capture notes");
-                        inbox.setIcon("📥");
-                        workspaceRepository.save(inbox);
-                        System.out.println("✅ Created inbox workspace");
-                    } catch (Exception createEx) {
-                        // If creation fails (e.g., duplicate), try to find again
-                        System.out.println("⚠️ User creation failed, trying to find existing user...");
-                        Optional<User> retryOpt = userRepository.findByEmail(email);
-                        if (retryOpt.isPresent()) {
-                            user = retryOpt.get();
-                            System.out.println("✅ Found user after retry: " + user.getUsername());
-                        } else {
-                            throw createEx; // Re-throw if still can't find
-                        }
-                    }
+                    user = new User();
+                    user.setUsername(email.split("@")[0]);
+                    user.setEmail(email);
+                    user.setPassword(passwordEncoder.encode("google_oauth_user_" + UUID.randomUUID()));
+                    user.setFirstName(firstName);
+                    user.setLastName(lastName);
+                    user.setRole("USER");
+                    user = userRepository.save(user);
+                    
+                    UserProfile profile = new UserProfile(user);
+                    userProfileRepository.save(profile);
+                    
+                    Workspace inbox = new Workspace("Inbox", user, true);
+                    inbox.setDescription("Quick capture notes");
+                    inbox.setIcon("📥");
+                    workspaceRepository.save(inbox);
                 }
             }
             
-            // ✅ AUTOMATICALLY ENABLE 2FA FOR ALL GOOGLE LOGINS
-            System.out.println("💡 About to check 2FA status for user: " + email);
-            System.out.println("💡 User 2FA enabled: " + user.getTwoFactorEnabled());
-            
-            boolean requiresTwoFactor = false;
+            // Handle 2FA for Google Login
+            boolean requiresTwoFactor = true; // Always require 2FA for Google if we want it enabled by default
             if (user.getTwoFactorEnabled() == null || !user.getTwoFactorEnabled()) {
-                System.out.println("💡 Enabling 2FA for user...");
                 user.setTwoFactorEnabled(true);
                 userRepository.save(user);
-                requiresTwoFactor = true;
-            } else {
-                System.out.println("💡 2FA already enabled for user");
-                requiresTwoFactor = true;
             }
             
-            System.out.println("💡 requiresTwoFactor = " + requiresTwoFactor);
+            TwoFactorCode twoFactorCode = new TwoFactorCode(user);
+            twoFactorCodeRepository.save(twoFactorCode);
             
-            // Generate and send 2FA code
-            if (requiresTwoFactor) {
-                TwoFactorCode twoFactorCode = new TwoFactorCode(user);
-                twoFactorCodeRepository.save(twoFactorCode);
-                
-                System.out.println("========================================");
-                System.out.println("📧 2FA PIN for " + email);
-                System.out.println("🔑 PIN CODE: " + twoFactorCode.getCode());
-                System.out.println("========================================");
-                
-                try {
-                    emailService.send2FACode(email, twoFactorCode.getCode());
-                    System.out.println("✅ 2FA email sent successfully to: " + email);
-                } catch (Exception emailEx) {
-                    System.out.println("❌ Failed to send 2FA email: " + emailEx.getMessage());
-                    // Continue even if email fails (PIN is printed to console)
-                }
+            System.out.println("========================================");
+            System.out.println("📧 2FA PIN for Google Login: " + email);
+            System.out.println("🔑 PIN CODE: " + twoFactorCode.getCode());
+            System.out.println("========================================");
+            
+            try {
+                emailService.send2FACode(email, twoFactorCode.getCode());
+            } catch (Exception emailEx) {
+                System.out.println("❌ Failed to send 2FA email, but continuing...");
             }
             
-            // Generate token
-            String token = "token_" + UUID.randomUUID().toString();
-            System.out.println("✅ Generated token: " + token.substring(0, 20) + "...");
-            
-            // Convert to DTO
+            String token = jwtUtil.generateToken(user.getUsername());
             UserDTO userDTO = dtoMapper.toUserDTO(user);
             
-            // Create response with 2FA flag
-            LoginResponse response = new LoginResponse(
+            LoginResponse loginResponse = new LoginResponse(
                     true,
-                    requiresTwoFactor ? "Check your email for the PIN" : "Google login successful!",
+                    "Check your email for the PIN",
                     token,
                     userDTO);
+            loginResponse.setRequiresTwoFactor(true);
             
-            response.setRequiresTwoFactor(requiresTwoFactor);
-            
-            System.out.println("✅ Sending success response");
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(loginResponse);
             
         } catch (Exception e) {
-            System.out.println("❌ ERROR in google-callback: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("success", false, "message", "Google callback failed: " + e.getMessage()));
@@ -615,7 +573,7 @@ public class AuthController {
             User user = userOpt.get();
             
             // Find the most recent 2FA code for this user
-            java.util.List<TwoFactorCode> codes = 
+            List<TwoFactorCode> codes = 
                 twoFactorCodeRepository.findByUserIdOrderByExpiryDateDesc(userId);
             
             if (codes.isEmpty()) {
@@ -653,8 +611,8 @@ public class AuthController {
             twoFactorCodeRepository.save(latestCode);
             System.out.println("✅ Code verified and marked as used");
             
-            // Generate new token for the session
-            String token = "token_" + UUID.randomUUID().toString();
+            // Generate real JWT token
+            String token = jwtUtil.generateToken(user.getUsername());
             
             // Convert to DTO
             UserDTO userDTO = dtoMapper.toUserDTO(user);
@@ -701,6 +659,7 @@ public class AuthController {
             passwordResetTokenRepository.save(resetToken);
 
             // Send reset email
+            System.out.println("🔑 PASSWORD RESET TOKEN: " + resetToken.getToken());
             emailService.sendPasswordResetEmail(user.getEmail(), resetToken.getToken());
 
             return ResponseEntity.ok("If email exists, reset link will be sent");
@@ -732,7 +691,7 @@ public class AuthController {
 
             // Update user password
             User user = resetToken.getUser();
-            user.setPassword(newPassword); // TODO: Hash password in production with BCrypt
+            user.setPassword(passwordEncoder.encode(newPassword));
             userRepository.save(user);
 
             // Mark token as used
@@ -779,5 +738,4 @@ public class AuthController {
                     .body("Failed to send 2FA code: " + e.getMessage());
         }
     }
-
 }
