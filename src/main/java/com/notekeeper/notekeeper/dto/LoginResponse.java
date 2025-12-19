@@ -5,12 +5,14 @@ public class LoginResponse {
     private String message;
     private String token;
     private UserDTO user;
+    private boolean requiresTwoFactor; // Add 2FA flag
 
     public LoginResponse(boolean success, String message, String token, UserDTO user) {
         this.success = success;
         this.message = message;
         this.token = token;
         this.user = user;
+        this.requiresTwoFactor = false; // Default to false
     }
 
     // Getters and Setters
@@ -44,5 +46,13 @@ public class LoginResponse {
 
     public void setUser(UserDTO user) {
         this.user = user;
+    }
+    
+    public boolean isRequiresTwoFactor() {
+        return requiresTwoFactor;
+    }
+    
+    public void setRequiresTwoFactor(boolean requiresTwoFactor) {
+        this.requiresTwoFactor = requiresTwoFactor;
     }
 }

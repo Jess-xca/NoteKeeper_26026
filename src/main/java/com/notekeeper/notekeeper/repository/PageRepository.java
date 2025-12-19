@@ -66,6 +66,10 @@ public interface PageRepository extends JpaRepository<Page, String> {
         long countByWorkspaceId(String workspaceId);
 
         long countByUserIdAndIsFavoriteTrue(String userId);
+        
+        // Count pages created between dates (for weekly stats)
+        @Query("SELECT COUNT(p) FROM Page p WHERE p.user.id = :userId AND p.createdAt >= :startDate AND p.createdAt < :endDate")
+        long countByUserIdAndCreatedAtBetween(@Param("userId") String userId, @Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 
         // Top queries
         List<Page> findTop10ByUserIdOrderByUpdatedAtDesc(String userId);

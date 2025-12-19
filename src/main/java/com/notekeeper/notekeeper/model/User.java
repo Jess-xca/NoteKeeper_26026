@@ -44,18 +44,24 @@ public class User {
 
     @Column(length = 20)
     private String role = "USER"; // USER, ADMIN, EDITOR
+    
+    @Column(name = "two_factor_enabled")
+    private Boolean twoFactorEnabled = false; // 2FA enabled flag
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "location_id")
     private Location location;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private UserProfile profile;
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @JsonIgnore
+    private UserProfile userProfile;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @JsonIgnore
     private List<Page> pages = new ArrayList<>();
 
-    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    @JsonIgnore
     private List<Workspace> workspaces = new ArrayList<>();
 
     @Column(nullable = false, updatable = false)
@@ -172,11 +178,11 @@ public class User {
     }
 
     public UserProfile getProfile() {
-        return profile;
+        return userProfile;
     }
 
     public void setProfile(UserProfile profile) {
-        this.profile = profile;
+        this.userProfile = profile;
     }
 
     public List<Page> getPages() {
@@ -201,6 +207,14 @@ public class User {
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
+    }
+    
+    public Boolean getTwoFactorEnabled() {
+        return twoFactorEnabled;
+    }
+    
+    public void setTwoFactorEnabled(Boolean twoFactorEnabled) {
+        this.twoFactorEnabled = twoFactorEnabled;
     }
 
     public void setUpdatedAt(LocalDateTime updatedAt) {

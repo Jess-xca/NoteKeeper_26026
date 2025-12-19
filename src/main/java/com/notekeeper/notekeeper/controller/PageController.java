@@ -9,7 +9,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.DayOfWeek;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -19,6 +24,9 @@ public class PageController {
 
     @Autowired
     private PageService pageService;
+    
+    @Autowired
+    private com.notekeeper.notekeeper.repository.PageRepository pageRepository;
 
     @Autowired
     private DTOMapper dtoMapper;
@@ -370,6 +378,34 @@ public class PageController {
         } catch (Exception e) {
             return new ResponseEntity<>("Failed to count favorite pages: " + e.getMessage(),
                     HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    // Get weekly statistics
+    @GetMapping("/weekly-stats/{userId}")
+    public ResponseEntity<Map<String, Object>> getWeeklyStats(@PathVariable String userId) {
+        try {
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime startOfThisWeek = now.with(DayOfWeek.MONDAY).truncatedTo(ChronoUnit.DAYS);
+            LocalDateTime startOfLastWeek = startOfThisWeek.minusWeeks(1);
+            
+            long thisWeekCount = pageRepository.countByUserIdAndCreatedAtBetween(userId, startOfThisWeek, now);
+            long lastWeekCount = pageRepository.countByUserIdAndCreatedAtBetween(userId, startOfLastWeek, startOfThisWeek);
+            
+            double percentageChange = 0;
+            if (lastWeekCount > 0) {
+                percentageChange = ((double)(thisWeekCount - lastWeekCount) / lastWeekCount) * 100;
+            }
+            
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("thisWeek", thisWeekCount);
+            stats.put("lastWeek", lastWeekCount);
+            stats.put("percentageChange", Math.round(percentageChange));
+            stats.put("isIncrease", thisWeekCount >= lastWeekCount);
+            
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }

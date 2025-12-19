@@ -203,4 +203,22 @@ public class DTOMapper {
                 member.getRole().name(),
                 member.getJoinedAt());
     }
+
+    // Notification Mappings
+    public NotificationDTO toNotificationDTO(Notification notification) {
+        if (notification == null)
+            return null;
+
+        NotificationDTO dto = new NotificationDTO();
+        dto.setId(notification.getId());
+        dto.setUserId(notification.getUser().getId());
+        dto.setTitle(notification.getTitle());
+        dto.setMessage(notification.getMessage());
+        dto.setType(notification.getType());
+        dto.setIsRead(notification.getIsRead());
+        dto.setCreatedAt(notification.getCreatedAt());
+        dto.setActionUrl(notification.getActionUrl());
+
+        return dto;
+    }
 }

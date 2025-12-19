@@ -119,7 +119,32 @@ public class UserService {
         return userRepository.findAll();
     }
 
-    public java.util.List<UserDTO> getAllUsersDTO() {
+    // UPDATE - for admin panel (selective fields)
+    public User updateUserAdmin(String id, User updatedUser) {
+        User existingUser = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+
+        // Update allowed fields
+        if (updatedUser.getFirstName() != null) {
+            existingUser.setFirstName(updatedUser.getFirstName());
+        }
+        if (updatedUser.getLastName() != null) {
+            existingUser.setLastName(updatedUser.getLastName());
+        }
+        if (updatedUser.getPhoneNumber() != null) {
+            existingUser.setPhoneNumber(updatedUser.getPhoneNumber());
+        }
+        if (updatedUser.getRole() != null) {
+            existingUser.setRole(updatedUser.getRole());
+        }
+        if (updatedUser.getGender() != null) {
+            existingUser.setGender(updatedUser.getGender());
+        }
+
+        return userRepository.save(existingUser);
+    }
+
+    public List<UserDTO> getAllUsersDTO() {
         return getAllUsers().stream().map(dtoMapper::toUserDTO).toList();
     }
 
@@ -151,16 +176,6 @@ public class UserService {
 
     public List<UserDTO> getUsersByProvinceCodeDTO(String code) {
         return getUsersByProvinceCode(code).stream().map(dtoMapper::toUserDTO).toList();
-    }
-
-    // UPDATE
-    public User updateUser(String id, User userDetails) {
-        User user = getUserById(id);
-        user.setFirstName(userDetails.getFirstName());
-        user.setLastName(userDetails.getLastName());
-        user.setEmail(userDetails.getEmail());
-        user.setLocation(userDetails.getLocation());
-        return userRepository.save(user);
     }
 
     // DTO-based update: merge allowed fields and nested profile/location
@@ -214,6 +229,16 @@ public class UserService {
     // DELETE
     public void deleteUser(String id) {
         User user = getUserById(id);
+
+        // First, delete all workspaces owned by this user (cascade will handle
+        // workspace members)
+        List<Workspace> ownedWorkspaces = workspaceRepository.findByOwnerId(user.getId());
+        if (ownedWorkspaces != null && !ownedWorkspaces.isEmpty()) {
+            workspaceRepository.deleteAll(ownedWorkspaces);
+        }
+
+        // Now safe to delete the user (workspace_members FK will be handled by
+        // cascading)
         userRepository.delete(user);
     }
 
