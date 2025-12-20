@@ -12,6 +12,9 @@ import com.notekeeper.notekeeper.repository.WorkspaceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
+import com.notekeeper.notekeeper.exception.BadRequestException;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -31,64 +34,54 @@ public class WorkspaceMemberService {
     @Autowired
     private DTOMapper dtoMapper;
 
-    public String addMember(String workspaceId, String userId, String role) {
+    @Transactional
+    public void addMember(String workspaceId, String userId, String role) {
         if (!WorkspaceRole.isValid(role)) {
-            return "invalid role";
+            throw new BadRequestException("Invalid role. Must be OWNER, EDITOR, or VIEWER");
         }
 
-        Optional<Workspace> workspaceOpt = workspaceRepository.findById(workspaceId);
-        if (!workspaceOpt.isPresent()) {
-            return "workspace not found";
-        }
+        Workspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
 
-        Optional<User> userOpt = userRepository.findById(userId);
-        if (!userOpt.isPresent()) {
-            return "user not found";
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)) {
-            return "user already member";
+            throw new BadRequestException("User is already a member of this workspace");
         }
 
-        WorkspaceMember member = new WorkspaceMember(workspaceOpt.get(), userOpt.get(),
+        WorkspaceMember member = new WorkspaceMember(workspace, user,
                 WorkspaceRole.valueOf(role.toUpperCase()));
-        WorkspaceMember saved = workspaceMemberRepository.save(member);
-        return saved.getId();
+        workspaceMemberRepository.save(member);
     }
 
-    public String removeMember(String workspaceId, String userId) {
-        Optional<WorkspaceMember> memberOpt = workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, userId);
-        if (!memberOpt.isPresent()) {
-            return "member not found";
-        }
+    @Transactional
+    public void removeMember(String workspaceId, String userId) {
+        WorkspaceMember member = workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Member not found"));
 
-        WorkspaceMember member = memberOpt.get();
         if (member.getRole() == WorkspaceRole.OWNER) {
-            return "cannot remove owner";
+            throw new BadRequestException("Cannot remove workspace owner");
         }
 
         workspaceMemberRepository.delete(member);
-        return "success";
     }
 
-    public String updateMemberRole(String workspaceId, String userId, String newRole) {
+    @Transactional
+    public void updateMemberRole(String workspaceId, String userId, String newRole) {
         if (!WorkspaceRole.isValid(newRole)) {
-            return "invalid role";
+            throw new BadRequestException("Invalid role. Must be OWNER, EDITOR, or VIEWER");
         }
 
-        Optional<WorkspaceMember> memberOpt = workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, userId);
-        if (!memberOpt.isPresent()) {
-            return "member not found";
-        }
+        WorkspaceMember member = workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Member not found"));
 
-        WorkspaceMember member = memberOpt.get();
         if (member.getRole() == WorkspaceRole.OWNER && !newRole.equalsIgnoreCase("OWNER")) {
-            return "cannot change owner role";
+            throw new BadRequestException("Cannot change workspace owner role");
         }
 
         member.setRole(WorkspaceRole.valueOf(newRole.toUpperCase()));
         workspaceMemberRepository.save(member);
-        return "success";
     }
 
     public List<WorkspaceMemberDTO> getWorkspaceMembers(String workspaceId) {

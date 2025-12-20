@@ -10,6 +10,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
+import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
+import com.notekeeper.notekeeper.exception.BadRequestException;
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 public class TagService {
 
@@ -17,9 +21,10 @@ public class TagService {
     private TagRepository tagRepository;
 
     // CREATE
+    @Transactional
     public String createTag(Tag tag) {
         if (tagRepository.existsByName(tag.getName())) {
-            return "name exists";
+            throw new BadRequestException("Tag name already exists");
         }
         Tag saved = tagRepository.save(tag);
         return saved.getId();
@@ -27,13 +32,13 @@ public class TagService {
 
     // READ
     public Tag getTagById(String id) {
-        Optional<Tag> tag = tagRepository.findById(id);
-        return tag.orElse(null);
+        return tagRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tag not found"));
     }
 
     public Tag getTagByName(String name) {
-        Optional<Tag> tag = tagRepository.findByName(name);
-        return tag.orElse(null);
+        return tagRepository.findByName(name)
+                .orElseThrow(() -> new ResourceNotFoundException("Tag not found"));
     }
 
     public List<Tag> getAllTags() {
@@ -53,30 +58,23 @@ public class TagService {
     }
 
     // UPDATE
-    public String updateTag(String id, Tag tagDetails) {
-        Optional<Tag> tagOpt = tagRepository.findById(id);
+    @Transactional
+    public void updateTag(String id, Tag tagDetails) {
+        Tag tag = tagRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tag not found"));
 
-        if (!tagOpt.isPresent()) {
-            return "not found";
-        }
-
-        Tag tag = tagOpt.get();
         tag.setName(tagDetails.getName());
         tag.setColor(tagDetails.getColor());
         tagRepository.save(tag);
-        return "success";
     }
 
     // DELETE
-    public String deleteTag(String id) {
-        Optional<Tag> tagOpt = tagRepository.findById(id);
+    @Transactional
+    public void deleteTag(String id) {
+        Tag tag = tagRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Tag not found"));
 
-        if (!tagOpt.isPresent()) {
-            return "not found";
-        }
-
-        tagRepository.delete(tagOpt.get());
-        return "success";
+        tagRepository.delete(tag);
     }
 
     // PAGINATION

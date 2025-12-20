@@ -11,6 +11,9 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
+import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 public class NotificationService {
 
@@ -21,21 +24,20 @@ public class NotificationService {
     private UserRepository userRepository;
 
     // CREATE
+    @Transactional
     public String createNotification(String userId, String title, String message, NotificationType type) {
-        Optional<User> userOpt = userRepository.findById(userId);
-        if (!userOpt.isPresent()) {
-            return "user not found";
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Notification notification = new Notification(userOpt.get(), title, message, type);
+        Notification notification = new Notification(user, title, message, type);
         Notification saved = notificationRepository.save(notification);
         return saved.getId();
     }
 
     // READ
     public Notification getNotificationById(String id) {
-        Optional<Notification> notification = notificationRepository.findById(id);
-        return notification.orElse(null);
+        return notificationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
     }
 
     public List<Notification> getAllNotifications(String userId) {
@@ -51,49 +53,38 @@ public class NotificationService {
     }
 
     // UPDATE
-    public String markAsRead(String id) {
-        Optional<Notification> notificationOpt = notificationRepository.findById(id);
+    @Transactional
+    public void markAsRead(String id) {
+        Notification notification = notificationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
 
-        if (!notificationOpt.isPresent()) {
-            return "not found";
-        }
-
-        Notification notification = notificationOpt.get();
         notification.setIsRead(true);
         notificationRepository.save(notification);
-        return "success";
     }
 
-    public String markAsUnread(String id) {
-        Optional<Notification> notificationOpt = notificationRepository.findById(id);
+    @Transactional
+    public void markAsUnread(String id) {
+        Notification notification = notificationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
 
-        if (!notificationOpt.isPresent()) {
-            return "not found";
-        }
-
-        Notification notification = notificationOpt.get();
         notification.setIsRead(false);
         notificationRepository.save(notification);
-        return "success";
     }
 
-    public String markAllAsRead(String userId) {
+    @Transactional
+    public void markAllAsRead(String userId) {
         List<Notification> notifications = notificationRepository
                 .findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId);
         notifications.forEach(n -> n.setIsRead(true));
         notificationRepository.saveAll(notifications);
-        return "success";
     }
 
     // DELETE
-    public String deleteNotification(String id) {
-        Optional<Notification> notificationOpt = notificationRepository.findById(id);
+    @Transactional
+    public void deleteNotification(String id) {
+        Notification notification = notificationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found"));
 
-        if (!notificationOpt.isPresent()) {
-            return "not found";
-        }
-
-        notificationRepository.delete(notificationOpt.get());
-        return "success";
+        notificationRepository.delete(notification);
     }
 }

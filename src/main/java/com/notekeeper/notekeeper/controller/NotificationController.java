@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -25,121 +26,64 @@ public class NotificationController {
     private DTOMapper dtoMapper;
 
     @PostMapping
-    public ResponseEntity<?> createNotification(
+    public ResponseEntity<NotificationDTO> createNotification(
             @RequestParam String userId,
             @RequestParam String title,
             @RequestParam String message,
             @RequestParam NotificationType type) {
-        try {
-            String result = notificationService.createNotification(userId, title, message, type);
-
-            if (result.equals("user not found")) {
-                return new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND);
-            } else {
-                Notification notification = notificationService.getNotificationById(result);
-                return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toNotificationDTO(notification));
-            }
-        } catch (Exception e) {
-            return new ResponseEntity<>("Failed to create notification: " + e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        String resultId = notificationService.createNotification(userId, title, message, type);
+        Notification notification = notificationService.getNotificationById(resultId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toNotificationDTO(notification));
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<?> getUserNotifications(@PathVariable String userId) {
-        try {
-            List<Notification> notifications = notificationService.getAllNotifications(userId);
-            List<NotificationDTO> notificationDTOs = notifications.stream()
-                    .map(dtoMapper::toNotificationDTO)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(notificationDTOs);
-        } catch (Exception e) {
-            return new ResponseEntity<>("Failed to fetch notifications: " + e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    @GetMapping("/my")
+    public ResponseEntity<List<NotificationDTO>> getMyNotifications(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal) {
+        List<Notification> notifications = notificationService.getAllNotifications(principal.getId());
+        List<NotificationDTO> notificationDTOs = notifications.stream()
+                .map(dtoMapper::toNotificationDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(notificationDTOs);
     }
 
-    @GetMapping("/user/{userId}/unread")
-    public ResponseEntity<?> getUnreadNotifications(@PathVariable String userId) {
-        try {
-            List<Notification> notifications = notificationService.getUnreadNotifications(userId);
-            List<NotificationDTO> notificationDTOs = notifications.stream()
-                    .map(dtoMapper::toNotificationDTO)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(notificationDTOs);
-        } catch (Exception e) {
-            return new ResponseEntity<>("Failed to fetch unread notifications: " + e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    @GetMapping("/my/unread")
+    public ResponseEntity<List<NotificationDTO>> getMyUnreadNotifications(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal) {
+        List<Notification> notifications = notificationService.getUnreadNotifications(principal.getId());
+        List<NotificationDTO> notificationDTOs = notifications.stream()
+                .map(dtoMapper::toNotificationDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(notificationDTOs);
     }
 
-    @GetMapping("/user/{userId}/count")
-    public ResponseEntity<?> countUnreadNotifications(@PathVariable String userId) {
-        try {
-            long count = notificationService.countUnreadNotifications(userId);
-            return ResponseEntity.ok(count);
-        } catch (Exception e) {
-            return new ResponseEntity<>("Failed to count notifications: " + e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    @GetMapping("/my/count")
+    public ResponseEntity<Long> countMyUnreadNotifications(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal) {
+        long count = notificationService.countUnreadNotifications(principal.getId());
+        return ResponseEntity.ok(count);
     }
 
     @PutMapping("/{id}/mark-read")
-    public ResponseEntity<?> markAsRead(@PathVariable String id) {
-        try {
-            String result = notificationService.markAsRead(id);
-
-            if (result.equals("not found")) {
-                return new ResponseEntity<>("Notification not found", HttpStatus.NOT_FOUND);
-            } else {
-                return ResponseEntity.ok("Notification marked as read");
-            }
-        } catch (Exception e) {
-            return new ResponseEntity<>("Failed to mark notification: " + e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    public ResponseEntity<java.util.Map<String, String>> markAsRead(@PathVariable String id) {
+        notificationService.markAsRead(id);
+        return ResponseEntity.ok(java.util.Map.of("message", "Notification marked as read"));
     }
 
     @PutMapping("/{id}/mark-unread")
-    public ResponseEntity<?> markAsUnread(@PathVariable String id) {
-        try {
-            String result = notificationService.markAsUnread(id);
-
-            if (result.equals("not found")) {
-                return new ResponseEntity<>("Notification not found", HttpStatus.NOT_FOUND);
-            } else {
-                return ResponseEntity.ok("Notification marked as unread");
-            }
-        } catch (Exception e) {
-            return new ResponseEntity<>("Failed to mark notification: " + e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    public ResponseEntity<java.util.Map<String, String>> markAsUnread(@PathVariable String id) {
+        notificationService.markAsUnread(id);
+        return ResponseEntity.ok(java.util.Map.of("message", "Notification marked as unread"));
     }
 
     @PutMapping("/user/{userId}/mark-all-read")
-    public ResponseEntity<?> markAllAsRead(@PathVariable String userId) {
-        try {
-            notificationService.markAllAsRead(userId);
-            return ResponseEntity.ok("All notifications marked as read");
-        } catch (Exception e) {
-            return new ResponseEntity<>("Failed to mark all notifications: " + e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    public ResponseEntity<java.util.Map<String, String>> markAllAsRead(@PathVariable String userId) {
+        notificationService.markAllAsRead(userId);
+        return ResponseEntity.ok(java.util.Map.of("message", "All notifications marked as read"));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteNotification(@PathVariable String id) {
-        try {
-            String result = notificationService.deleteNotification(id);
-
-            if (result.equals("not found")) {
-                return new ResponseEntity<>("Notification not found", HttpStatus.NOT_FOUND);
-            } else {
-                return ResponseEntity.ok("Notification deleted successfully");
-            }
-        } catch (Exception e) {
-            return new ResponseEntity<>("Failed to delete notification: " + e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+    public ResponseEntity<java.util.Map<String, String>> deleteNotification(@PathVariable String id) {
+        notificationService.deleteNotification(id);
+        return ResponseEntity.ok(java.util.Map.of("message", "Notification deleted successfully"));
     }
 }

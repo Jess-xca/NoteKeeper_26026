@@ -10,6 +10,9 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
+import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 public class UserProfileService {
 
@@ -17,24 +20,21 @@ public class UserProfileService {
     private UserProfileRepository userProfileRepository;
 
     // CREATE
+    @Transactional
     public String createProfile(UserProfile profile) {
-        try {
-            UserProfile saved = userProfileRepository.save(profile);
-            return saved.getId();
-        } catch (Exception e) {
-            return "error: " + e.getMessage();
-        }
+        UserProfile saved = userProfileRepository.save(profile);
+        return saved.getId();
     }
 
     // READ
     public UserProfile getProfileById(String id) {
-        Optional<UserProfile> profile = userProfileRepository.findById(id);
-        return profile.orElse(null);
+        return userProfileRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found"));
     }
 
     public UserProfile getProfileByUserId(String userId) {
-        Optional<UserProfile> profile = userProfileRepository.findByUserId(userId);
-        return profile.orElse(null);
+        return userProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found for user"));
     }
 
     public List<UserProfile> getAllProfiles() {
@@ -46,32 +46,25 @@ public class UserProfileService {
     }
 
     // UPDATE
-    public String updateProfile(String id, UserProfile profileDetails) {
-        Optional<UserProfile> profileOpt = userProfileRepository.findById(id);
+    @Transactional
+    public void updateProfile(String id, UserProfile profileDetails) {
+        UserProfile profile = userProfileRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found"));
 
-        if (!profileOpt.isPresent()) {
-            return "not found";
-        }
-
-        UserProfile profile = profileOpt.get();
         profile.setBio(profileDetails.getBio());
         profile.setAvatarUrl(profileDetails.getAvatarUrl());
         profile.setTheme(profileDetails.getTheme());
         profile.setLanguage(profileDetails.getLanguage());
         userProfileRepository.save(profile);
-        return "success";
     }
 
     // DELETE
-    public String deleteProfile(String id) {
-        Optional<UserProfile> profileOpt = userProfileRepository.findById(id);
+    @Transactional
+    public void deleteProfile(String id) {
+        UserProfile profile = userProfileRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found"));
 
-        if (!profileOpt.isPresent()) {
-            return "not found";
-        }
-
-        userProfileRepository.delete(profileOpt.get());
-        return "success";
+        userProfileRepository.delete(profile);
     }
 
     // PAGINATION

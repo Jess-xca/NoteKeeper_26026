@@ -11,6 +11,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 
+import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
+import com.notekeeper.notekeeper.exception.BadRequestException;
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 public class LocationService {
 
@@ -18,27 +22,25 @@ public class LocationService {
     private LocationRepository locationRepository;
 
     // CREATE
+    @Transactional
     public String createLocation(Location location) {
         if (locationRepository.existsByCode(location.getCode())) {
-            return "code exists";
+            throw new BadRequestException("Location code already exists");
         }
         Location saved = locationRepository.save(location);
         return saved.getId();
     }
 
+    @Transactional
     public String createLocationWithParent(String parentCode, Location childLocation) {
         if (parentCode != null) {
-            Optional<Location> parent = locationRepository.findByCode(parentCode);
-
-            if (!parent.isPresent()) {
-                return "parent not found";
-            }
-
-            childLocation.setParent(parent.get());
+            Location parent = locationRepository.findByCode(parentCode)
+                    .orElseThrow(() -> new ResourceNotFoundException("Parent location not found"));
+            childLocation.setParent(parent);
         }
 
         if (locationRepository.existsByCode(childLocation.getCode())) {
-            return "code exists";
+            throw new BadRequestException("Location code already exists");
         }
 
         Location saved = locationRepository.save(childLocation);
@@ -47,13 +49,13 @@ public class LocationService {
 
     // READ
     public Location getLocationById(String id) {
-        Optional<Location> location = locationRepository.findById(id);
-        return location.orElse(null);
+        return locationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
     }
 
     public Location getLocationByCode(String code) {
-        Optional<Location> location = locationRepository.findByCode(code);
-        return location.orElse(null);
+        return locationRepository.findByCode(code)
+                .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
     }
 
     public List<Location> getAllLocations() {
@@ -81,40 +83,31 @@ public class LocationService {
     }
 
     // UPDATE
-    public String updateLocation(String id, Location locationDetails) {
-        Optional<Location> locationOpt = locationRepository.findById(id);
+    @Transactional
+    public void updateLocation(String id, Location locationDetails) {
+        Location location = locationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
 
-        if (!locationOpt.isPresent()) {
-            return "not found";
-        }
-
-        Location location = locationOpt.get();
         location.setName(locationDetails.getName());
         location.setCode(locationDetails.getCode());
         location.setType(locationDetails.getType());
         locationRepository.save(location);
-        return "success";
     }
 
     // DELETE
-    public String deleteLocation(String id) {
-        Optional<Location> locationOpt = locationRepository.findById(id);
-
-        if (!locationOpt.isPresent()) {
-            return "not found";
-        }
-
-        Location location = locationOpt.get();
+    @Transactional
+    public void deleteLocation(String id) {
+        Location location = locationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
 
         if (!location.getChildren().isEmpty()) {
-            return "has children";
+            throw new BadRequestException("Cannot delete location with children");
         }
         if (!location.getUsers().isEmpty()) {
-            return "has users";
+            throw new BadRequestException("Cannot delete location with users");
         }
 
         locationRepository.delete(location);
-        return "success";
     }
 
     // PAGINATION

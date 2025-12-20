@@ -13,6 +13,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
+import com.notekeeper.notekeeper.exception.BadRequestException;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,35 +38,29 @@ public class PageService {
     private PageTagRepository pageTagRepository;
 
     // CREATE
+    @Transactional
     public String createPage(Page page) {
-        try {
-            Page saved = pageRepository.save(page);
-            return saved.getId();
-        } catch (Exception e) {
-            return "error: " + e.getMessage();
-        }
+        Page saved = pageRepository.save(page);
+        return saved.getId();
     }
 
+    @Transactional
     public String createQuickNote(String userId, String title, String content) {
-        Optional<User> userOpt = userRepository.findById(userId);
-        if (!userOpt.isPresent()) {
-            return "user not found";
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Optional<Workspace> inboxOpt = workspaceRepository.findByOwnerIdAndIsDefaultTrue(userId);
-        if (!inboxOpt.isPresent()) {
-            return "inbox not found";
-        }
+        Workspace inbox = workspaceRepository.findByOwnerIdAndIsDefaultTrue(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Inbox workspace not found"));
 
-        Page quickNote = new Page(title, content, userOpt.get(), inboxOpt.get());
+        Page quickNote = new Page(title, content, user, inbox);
         Page saved = pageRepository.save(quickNote);
         return saved.getId();
     }
 
     // READ
     public Page getPageById(String id) {
-        Optional<Page> page = pageRepository.findById(id);
-        return page.orElse(null);
+        return pageRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Page not found with id: " + id));
     }
 
     public List<Page> getAllPages() {
@@ -99,14 +96,11 @@ public class PageService {
     }
 
     // UPDATE
-    public String updatePage(String id, Page pageDetails) {
-        Optional<Page> pageOpt = pageRepository.findById(id);
+    @Transactional
+    public void updatePage(String id, Page pageDetails) {
+        Page page = pageRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Page not found"));
 
-        if (!pageOpt.isPresent()) {
-            return "not found";
-        }
-
-        Page page = pageOpt.get();
         page.setTitle(pageDetails.getTitle());
         page.setContent(pageDetails.getContent());
         page.setIcon(pageDetails.getIcon());
@@ -126,72 +120,54 @@ public class PageService {
                     .anyMatch(existingPt -> existingPt.getTag().getId().equals(newPt.getTag().getId()));
                 
                 if (!exists) {
-                    Optional<com.notekeeper.notekeeper.model.Tag> tagOpt = tagRepository.findById(newPt.getTag().getId());
-                    if (tagOpt.isPresent()) {
-                        com.notekeeper.notekeeper.model.PageTag pt = new com.notekeeper.notekeeper.model.PageTag(page, tagOpt.get());
-                        page.getPageTags().add(pt);
-                    }
+                    com.notekeeper.notekeeper.model.Tag tag = tagRepository.findById(newPt.getTag().getId())
+                            .orElseThrow(() -> new ResourceNotFoundException("Tag not found: " + newPt.getTag().getId()));
+                    com.notekeeper.notekeeper.model.PageTag pt = new com.notekeeper.notekeeper.model.PageTag(page, tag);
+                    page.getPageTags().add(pt);
                 }
             }
         }
 
         pageRepository.save(page);
-        return "success";
     }
 
-    public String toggleFavorite(String pageId) {
-        Optional<Page> pageOpt = pageRepository.findById(pageId);
+    @Transactional
+    public void toggleFavorite(String pageId) {
+        Page page = pageRepository.findById(pageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Page not found"));
 
-        if (!pageOpt.isPresent()) {
-            return "not found";
-        }
-
-        Page page = pageOpt.get();
         page.setIsFavorite(!page.getIsFavorite());
         pageRepository.save(page);
-        return "success";
     }
 
-    public String toggleArchive(String pageId) {
-        Optional<Page> pageOpt = pageRepository.findById(pageId);
+    @Transactional
+    public void toggleArchive(String pageId) {
+        Page page = pageRepository.findById(pageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Page not found"));
 
-        if (!pageOpt.isPresent()) {
-            return "not found";
-        }
-
-        Page page = pageOpt.get();
         page.setIsArchived(!page.getIsArchived());
         pageRepository.save(page);
-        return "success";
     }
 
-    public String movePage(String pageId, String workspaceId) {
-        Optional<Page> pageOpt = pageRepository.findById(pageId);
-        if (!pageOpt.isPresent()) {
-            return "page not found";
-        }
+    @Transactional
+    public void movePage(String pageId, String workspaceId) {
+        Page page = pageRepository.findById(pageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Page not found"));
 
-        Optional<Workspace> workspaceOpt = workspaceRepository.findById(workspaceId);
-        if (!workspaceOpt.isPresent()) {
-            return "workspace not found";
-        }
+        Workspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
 
-        Page page = pageOpt.get();
-        page.setWorkspace(workspaceOpt.get());
+        page.setWorkspace(workspace);
         pageRepository.save(page);
-        return "success";
     }
 
     // DELETE
-    public String deletePage(String id) {
-        Optional<Page> pageOpt = pageRepository.findById(id);
+    @Transactional
+    public void deletePage(String id) {
+        Page page = pageRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Page not found"));
 
-        if (!pageOpt.isPresent()) {
-            return "not found";
-        }
-
-        pageRepository.delete(pageOpt.get());
-        return "success";
+        pageRepository.delete(page);
     }
 
     // SORTING

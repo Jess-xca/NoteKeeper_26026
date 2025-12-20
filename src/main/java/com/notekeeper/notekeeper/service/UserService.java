@@ -16,6 +16,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
+import com.notekeeper.notekeeper.exception.BadRequestException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
@@ -34,40 +38,46 @@ public class UserService {
     private LocationRepository locationRepository;
 
     @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
     private DTOMapper dtoMapper;
 
     // CREATE
+    @Transactional
     public User createUser(User user) {
         return createAndPersistUser(user, null);
     }
 
     // DTO-based create: accepts UserDTO, maps nested location/profile when provided
+    @Transactional
     public UserDTO createUser(UserDTO userDTO) {
         if (userDTO == null)
-            throw new RuntimeException("Invalid user data");
+            throw new BadRequestException("Invalid user data");
         User user = dtoMapper.toUserEntity(userDTO);
 
         // If location provided with id, fetch and set on the entity before persisting
         if (userDTO.getLocation() != null && userDTO.getLocation().getId() != null) {
-            var locOpt = locationRepository.findById(userDTO.getLocation().getId());
-            if (!locOpt.isPresent()) {
-                throw new RuntimeException("Location not found");
-            }
-            user.setLocation(locOpt.get());
+            var loc = locationRepository.findById(userDTO.getLocation().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
+            user.setLocation(loc);
         }
 
         User saved = createAndPersistUser(user, userDTO.getProfile());
         return dtoMapper.toUserDTO(saved);
     }
 
-    // central helper to persist a new user and its default related entities; avoids
-    // duplicating logic
+    // central helper to persist a new user and its default related entities
     private User createAndPersistUser(User user, UserProfileDTO profileDTO) {
         if (userRepository.existsByUsername(user.getUsername())) {
-            throw new RuntimeException("Username already exists");
+            throw new BadRequestException("Username already exists");
         }
         if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("Email already exists");
+            throw new BadRequestException("Email already exists");
+        }
+
+        if (user.getPassword() != null && !user.getPassword().startsWith("$2a$")) {
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
         }
 
         User savedUser = userRepository.save(user);
@@ -85,9 +95,7 @@ public class UserService {
                 profile.setLanguage(profileDTO.getLanguage());
         }
         userProfileRepository.save(profile);
-        // ensure bi-directional association is set on the user object
         savedUser.setProfile(profile);
-        // persist the user again so the relationship is visible on the returned entity
         userRepository.save(savedUser);
 
         // Create default Inbox workspace
@@ -102,7 +110,7 @@ public class UserService {
     // READ
     public User getUserById(String id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
     }
 
     public UserDTO getUserByIdDTO(String id) {
@@ -112,7 +120,7 @@ public class UserService {
 
     public User getUserByUsername(String username) {
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username));
     }
 
     public List<User> getAllUsers() {
@@ -120,9 +128,10 @@ public class UserService {
     }
 
     // UPDATE - for admin panel (selective fields)
+    @Transactional
     public User updateUserAdmin(String id, User updatedUser) {
         User existingUser = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
 
         // Update allowed fields
         if (updatedUser.getFirstName() != null) {
@@ -179,12 +188,13 @@ public class UserService {
     }
 
     // DTO-based update: merge allowed fields and nested profile/location
+    @Transactional
     public UserDTO updateUser(String id, UserDTO userDTO) {
         User user = getUserById(id);
 
         if (userDTO.getEmail() != null && !userDTO.getEmail().equals(user.getEmail())) {
             if (userRepository.existsByEmail(userDTO.getEmail())) {
-                throw new RuntimeException("Email already exists");
+                throw new BadRequestException("Email already exists");
             }
             user.setEmail(userDTO.getEmail());
         }
@@ -194,13 +204,11 @@ public class UserService {
         if (userDTO.getLastName() != null)
             user.setLastName(userDTO.getLastName());
 
-        // Location mapping: if provided and has id, set existing location
+        // Location mapping
         if (userDTO.getLocation() != null && userDTO.getLocation().getId() != null) {
-            var locOpt = locationRepository.findById(userDTO.getLocation().getId());
-            if (!locOpt.isPresent()) {
-                throw new RuntimeException("Location not found");
-            }
-            user.setLocation(locOpt.get());
+            var loc = locationRepository.findById(userDTO.getLocation().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
+            user.setLocation(loc);
         }
 
         User saved = userRepository.save(user);
@@ -227,26 +235,40 @@ public class UserService {
     }
 
     // DELETE
+    @Transactional
     public void deleteUser(String id) {
         User user = getUserById(id);
 
-        // First, delete all workspaces owned by this user (cascade will handle
-        // workspace members)
+        // Delete owned workspaces
         List<Workspace> ownedWorkspaces = workspaceRepository.findByOwnerId(user.getId());
         if (ownedWorkspaces != null && !ownedWorkspaces.isEmpty()) {
             workspaceRepository.deleteAll(ownedWorkspaces);
         }
 
-        // Now safe to delete the user (workspace_members FK will be handled by
-        // cascading)
         userRepository.delete(user);
     }
 
-    // DTO-based delete: keep behavior same but expose DTO-friendly method
+    // DTO-based delete
+    @Transactional
     public void deleteUserDTO(String id) {
         deleteUser(id);
     }
 
+    @Transactional
+    public void changePassword(String id, String currentPassword, String newPassword) {
+        User user = getUserById(id);
+
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
+
+        if (newPassword.length() < 8) {
+            throw new BadRequestException("Password must be at least 8 characters");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
     // SORTING
     public List<User> getUsersSorted(String sortBy, String direction) {
         Sort sort = direction.equalsIgnoreCase("asc")

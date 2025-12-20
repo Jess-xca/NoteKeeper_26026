@@ -10,6 +10,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
+import com.notekeeper.notekeeper.exception.BadRequestException;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,19 +26,16 @@ public class WorkspaceService {
     private WorkspaceMemberRepository workspaceMemberRepository;
 
     // CREATE
+    @Transactional
     public String createWorkspace(Workspace workspace) {
-        try {
-            Workspace saved = workspaceRepository.save(workspace);
-            return saved.getId();
-        } catch (Exception e) {
-            return "error: " + e.getMessage();
-        }
+        Workspace saved = workspaceRepository.save(workspace);
+        return saved.getId();
     }
 
     // READ
     public Workspace getWorkspaceById(String id) {
-        Optional<Workspace> workspace = workspaceRepository.findById(id);
-        return workspace.orElse(null);
+        return workspaceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
     }
 
     public List<Workspace> getAllWorkspaces() {
@@ -54,8 +54,8 @@ public class WorkspaceService {
     }
 
     public Workspace getInboxWorkspace(String ownerId) {
-        Optional<Workspace> workspace = workspaceRepository.findByOwnerIdAndIsDefaultTrue(ownerId);
-        return workspace.orElse(null);
+        return workspaceRepository.findByOwnerIdAndIsDefaultTrue(ownerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Inbox workspace not found"));
     }
 
     public List<Workspace> searchWorkspaces(String keyword) {
@@ -67,37 +67,28 @@ public class WorkspaceService {
     }
 
     // UPDATE
-    public String updateWorkspace(String id, Workspace workspaceDetails) {
-        Optional<Workspace> workspaceOpt = workspaceRepository.findById(id);
+    @Transactional
+    public void updateWorkspace(String id, Workspace workspaceDetails) {
+        Workspace workspace = workspaceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
 
-        if (!workspaceOpt.isPresent()) {
-            return "not found";
-        }
-
-        Workspace workspace = workspaceOpt.get();
         workspace.setName(workspaceDetails.getName());
         workspace.setDescription(workspaceDetails.getDescription());
         workspace.setIcon(workspaceDetails.getIcon());
         workspaceRepository.save(workspace);
-        return "success";
     }
 
     // DELETE
-    public String deleteWorkspace(String id) {
-        Optional<Workspace> workspaceOpt = workspaceRepository.findById(id);
-
-        if (!workspaceOpt.isPresent()) {
-            return "not found";
-        }
-
-        Workspace workspace = workspaceOpt.get();
+    @Transactional
+    public void deleteWorkspace(String id) {
+        Workspace workspace = workspaceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
 
         if (workspace.getIsDefault()) {
-            return "cannot delete inbox";
+            throw new BadRequestException("Cannot delete inbox");
         }
 
         workspaceRepository.delete(workspace);
-        return "success";
     }
 
     // SORTING
