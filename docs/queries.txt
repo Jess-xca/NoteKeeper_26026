@@ -1,0 +1,477 @@
+# NoteKeeper Database - SQL Queries Reference
+
+## Users Table
+
+### View all users
+```sql
+SELECT * FROM "users";
+```
+
+### Find user by username
+```sql
+SELECT * FROM "users" WHERE username = 'johndoe';
+```
+
+### Find user by email
+```sql
+SELECT * FROM "users" WHERE email = 'john@example.com';
+```
+
+### Get users by role
+```sql
+SELECT * FROM "users" WHERE role = 'ADMIN';
+```
+
+### Search users by name
+```sql
+SELECT * FROM "users" 
+WHERE LOWER(first_name) LIKE '%john%' 
+   OR LOWER(last_name) LIKE '%doe%';
+```
+
+### Count total users
+```sql
+SELECT COUNT(*) FROM "users";
+```
+
+### Get users registered in last 30 days
+```sql
+SELECT * FROM "users" 
+WHERE created_at >= DATEADD('DAY', -30, CURRENT_DATE());
+```
+
+## User Profiles Table
+
+### View all profiles
+```sql
+SELECT * FROM "user_profiles";
+```
+
+### Get profile for specific user
+```sql
+SELECT * FROM "user_profiles" WHERE user_id = 'user-uuid-here';
+```
+
+### Find profiles by theme
+```sql
+SELECT * FROM "user_profiles" WHERE theme = 'DARK';
+```
+
+## Workspaces Table
+
+### View all workspaces
+```sql
+SELECT * FROM "workspaces";
+```
+
+### Get workspaces owned by user
+```sql
+SELECT * FROM "workspaces" WHERE owner_id = 'user-uuid-here';
+```
+
+### Find inbox workspaces
+```sql
+SELECT * FROM "workspaces" WHERE is_inbox = TRUE;
+```
+
+### Count workspaces
+```sql
+SELECT COUNT(*) FROM "workspaces";
+```
+
+### Get workspace with pages count
+```sql
+SELECT w.id, w.name, COUNT(p.id) as page_count
+FROM "workspaces" w
+LEFT JOIN "pages" p ON w.id = p.workspace_id
+GROUP BY w.id, w.name;
+```
+
+## Workspace Members Table
+
+### View all workspace memberships
+```sql
+SELECT * FROM "workspace_members";
+```
+
+### Get members of a workspace
+```sql
+SELECT wm.*, u.username, u.email
+FROM "workspace_members" wm
+JOIN "users" u ON wm.user_id = u.id
+WHERE wm.workspace_id = 'workspace-uuid-here';
+```
+
+### Get workspaces a user is member of
+```sql
+SELECT wm.*, w.name, w.description
+FROM "workspace_members" wm
+JOIN "workspaces" w ON wm.workspace_id = w.id
+WHERE wm.user_id = 'user-uuid-here';
+```
+
+### Find workspace owners
+```sql
+SELECT * FROM "workspace_members" WHERE role = 'OWNER';
+```
+
+## Pages Table
+
+### View all pages
+```sql
+SELECT * FROM "pages";
+```
+
+### Get pages in a workspace
+```sql
+SELECT * FROM "pages" WHERE workspace_id = 'workspace-uuid-here';
+```
+
+### Get pages created by user
+```sql
+SELECT * FROM "pages" WHERE user_id = 'user-uuid-here';
+```
+
+### Find archived pages
+```sql
+SELECT * FROM "pages" WHERE is_archived = TRUE;
+```
+
+### Search pages by title
+```sql
+SELECT * FROM "pages" WHERE LOWER(title) LIKE '%search-term%';
+```
+
+### Get recently updated pages
+```sql
+SELECT * FROM "pages" 
+ORDER BY updated_at DESC 
+LIMIT 10;
+```
+
+### Count pages by workspace
+```sql
+SELECT workspace_id, COUNT(*) as page_count
+FROM "pages"
+GROUP BY workspace_id;
+```
+
+## Tags Table
+
+### View all tags
+```sql
+SELECT * FROM "tags";
+```
+
+### Get tags created by user
+```sql
+SELECT * FROM "tags" WHERE user_id = 'user-uuid-here';
+```
+
+### Find unused tags
+```sql
+SELECT t.* FROM "tags" t
+LEFT JOIN "page_tags" pt ON t.id = pt.tag_id
+WHERE pt.tag_id IS NULL;
+```
+
+### Count pages per tag
+```sql
+SELECT t.id, t.name, COUNT(pt.page_id) as page_count
+FROM "tags" t
+LEFT JOIN "page_tags" pt ON t.id = pt.tag_id
+GROUP BY t.id, t.name;
+```
+
+## Page Tags Table (Many-to-Many)
+
+### View all page-tag relationships
+```sql
+SELECT * FROM "page_tags";
+```
+
+### Get tags for a specific page
+```sql
+SELECT t.* FROM "tags" t
+JOIN "page_tags" pt ON t.id = pt.tag_id
+WHERE pt.page_id = 'page-uuid-here';
+```
+
+### Get all pages with a specific tag
+```sql
+SELECT p.* FROM "pages" p
+JOIN "page_tags" pt ON p.id = pt.page_id
+WHERE pt.tag_id = 'tag-uuid-here';
+```
+
+### Find pages with multiple tags
+```sql
+SELECT p.id, p.title, COUNT(pt.tag_id) as tag_count
+FROM "pages" p
+JOIN "page_tags" pt ON p.id = pt.page_id
+GROUP BY p.id, p.title
+HAVING COUNT(pt.tag_id) > 1;
+```
+
+## Page Shares Table
+
+### View all page shares
+```sql
+SELECT * FROM "page_shares";
+```
+
+### Get pages shared with a user
+```sql
+SELECT ps.*, p.title, p.content
+FROM "page_shares" ps
+JOIN "pages" p ON ps.page_id = p.id
+WHERE ps.shared_with_id = 'user-uuid-here';
+```
+
+### Get shares for a specific page
+```sql
+SELECT ps.*, u.username, u.email
+FROM "page_shares" ps
+JOIN "users" u ON ps.shared_with_id = u.id
+WHERE ps.page_id = 'page-uuid-here';
+```
+
+### Find pages shared by a user
+```sql
+SELECT * FROM "page_shares" WHERE shared_by_id = 'user-uuid-here';
+```
+
+## Attachments Table
+
+### View all attachments
+```sql
+SELECT * FROM "attachments";
+```
+
+### Get attachments for a page
+```sql
+SELECT * FROM "attachments" WHERE page_id = 'page-uuid-here';
+```
+
+### Get attachments by user
+```sql
+SELECT * FROM "attachments" WHERE user_id = 'user-uuid-here';
+```
+
+### Calculate total storage used
+```sql
+SELECT SUM(file_size) as total_bytes FROM "attachments";
+```
+
+### Find large attachments (>5MB)
+```sql
+SELECT * FROM "attachments" WHERE file_size > 5242880 ORDER BY file_size DESC;
+```
+
+## Notifications Table
+
+### View all notifications
+```sql
+SELECT * FROM "notifications";
+```
+
+### Get notifications for a user
+```sql
+SELECT * FROM "notifications" WHERE user_id = 'user-uuid-here' ORDER BY created_at DESC;
+```
+
+### Get unread notifications
+```sql
+SELECT * FROM "notifications" WHERE user_id = 'user-uuid-here' AND is_read = FALSE;
+```
+
+### Count unread notifications per user
+```sql
+SELECT user_id, COUNT(*) as unread_count
+FROM "notifications"
+WHERE is_read = FALSE
+GROUP BY user_id;
+```
+
+### Get notifications by type
+```sql
+SELECT * FROM "notifications" WHERE type = 'WORKSPACE_INVITE';
+```
+
+## Locations Table
+
+### View all locations
+```sql
+SELECT * FROM "locations";
+```
+
+### Get all provinces
+```sql
+SELECT * FROM "locations" WHERE type = 'PROVINCE';
+```
+
+### Get children of a location
+```sql
+SELECT * FROM "locations" WHERE parent_id = 'location-uuid-here';
+```
+
+### Get full location path
+```sql
+SELECT * FROM "locations" 
+WHERE id IN (
+  SELECT id FROM "locations" WHERE id = 'village-uuid'
+  UNION
+  SELECT parent_id FROM "locations" WHERE id = 'village-uuid'
+  -- Continue for all parent levels
+);
+```
+
+### Search locations by name
+```sql
+SELECT * FROM "locations" WHERE LOWER(name) LIKE '%kigali%';
+```
+
+### Count locations by type
+```sql
+SELECT type, COUNT(*) as count
+FROM "locations"
+GROUP BY type;
+```
+
+## Password Reset Tokens Table
+
+### View all password reset tokens
+```sql
+SELECT * FROM "password_reset_tokens";
+```
+
+### Get active reset tokens for user
+```sql
+SELECT * FROM "password_reset_tokens" 
+WHERE user_id = 'user-uuid-here' 
+  AND expires_at > CURRENT_TIMESTAMP();
+```
+
+### Clean up expired tokens
+```sql
+DELETE FROM "password_reset_tokens" WHERE expires_at < CURRENT_TIMESTAMP();
+```
+
+## Two-Factor Codes Table
+
+### View all 2FA codes
+```sql
+SELECT * FROM "two_factor_codes";
+```
+
+### Get active 2FA code for user
+```sql
+SELECT * FROM "two_factor_codes" 
+WHERE user_id = 'user-uuid-here' 
+  AND expires_at > CURRENT_TIMESTAMP();
+```
+
+### Clean up expired 2FA codes
+```sql
+DELETE FROM "two_factor_codes" WHERE expires_at < CURRENT_TIMESTAMP();
+```
+
+## Complex/Analytical Queries
+
+### Get user activity summary
+```sql
+SELECT 
+    u.id,
+    u.username,
+    COUNT(DISTINCT w.id) as workspace_count,
+    COUNT(DISTINCT p.id) as page_count,
+    COUNT(DISTINCT t.id) as tag_count
+FROM "users" u
+LEFT JOIN "workspaces" w ON u.id = w.owner_id
+LEFT JOIN "pages" p ON u.id = p.user_id
+LEFT JOIN "tags" t ON u.id = t.user_id
+GROUP BY u.id, u.username;
+```
+
+### Find most active workspaces
+```sql
+SELECT 
+    w.id,
+    w.name,
+    COUNT(DISTINCT p.id) as page_count,
+    COUNT(DISTINCT wm.user_id) as member_count
+FROM "workspaces" w
+LEFT JOIN "pages" p ON w.id = p.workspace_id
+LEFT JOIN "workspace_members" wm ON w.id = wm.workspace_id
+GROUP BY w.id, w.name
+ORDER BY page_count DESC
+LIMIT 10;
+```
+
+### Get sharing statistics
+```sql
+SELECT 
+    u.username as shared_by,
+    COUNT(DISTINCT ps.page_id) as pages_shared,
+    COUNT(DISTINCT ps.shared_with_id) as shared_with_count
+FROM "users" u
+LEFT JOIN "page_shares" ps ON u.id = ps.shared_by_id
+GROUP BY u.id, u.username
+HAVING COUNT(DISTINCT ps.page_id) > 0;
+```
+
+### Find orphaned records
+```sql
+-- Pages without workspace
+SELECT * FROM "pages" WHERE workspace_id NOT IN (SELECT id FROM "workspaces");
+
+-- Tags not assigned to any page
+SELECT t.* FROM "tags" t
+LEFT JOIN "page_tags" pt ON t.id = pt.tag_id
+WHERE pt.tag_id IS NULL;
+
+-- Workspace members for deleted workspaces
+SELECT * FROM "workspace_members" 
+WHERE workspace_id NOT IN (SELECT id FROM "workspaces");
+```
+
+## Database Maintenance Queries
+
+### Analyze table sizes
+```sql
+SELECT 
+    'users' as table_name, COUNT(*) as row_count FROM "users"
+UNION ALL
+SELECT 'workspaces', COUNT(*) FROM "workspaces"
+UNION ALL
+SELECT 'pages', COUNT(*) FROM "pages"
+UNION ALL
+SELECT 'tags', COUNT(*) FROM "tags"
+UNION ALL
+SELECT 'page_tags', COUNT(*) FROM "page_tags"
+UNION ALL
+SELECT 'workspace_members', COUNT(*) FROM "workspace_members"
+UNION ALL
+SELECT 'page_shares', COUNT(*) FROM "page_shares"
+UNION ALL
+SELECT 'attachments', COUNT(*) FROM "attachments"
+UNION ALL
+SELECT 'notifications', COUNT(*) FROM "notifications"
+UNION ALL
+SELECT 'locations', COUNT(*) FROM "locations";
+```
+
+### Clear test data (CAUTION!)
+```sql
+-- Only run in development!
+DELETE FROM "page_tags";
+DELETE FROM "page_shares";
+DELETE FROM "workspace_members" WHERE role != 'OWNER';
+DELETE FROM "attachments";
+DELETE FROM "notifications";
+DELETE FROM "pages";
+DELETE FROM "tags";
+DELETE FROM "workspaces" WHERE is_inbox = FALSE;
+DELETE FROM "password_reset_tokens";
+DELETE FROM "two_factor_codes";
+```

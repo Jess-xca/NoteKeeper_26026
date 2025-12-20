@@ -1,0 +1,398 @@
+# NoteKeeper Backend - API Endpoints
+
+## Authentication Endpoints
+
+### POST /api/auth/register
+Register a new user account
+```json
+Request:
+{
+  "username": "johndoe",
+  "email": "john@example.com",
+  "password": "SecurePass123",
+  "firstName": "John",
+  "lastName": "Doe",
+  "phone": "+250780000000",
+  "dateOfBirth": "1990-01-15",
+  "gender": "MALE",
+  "locationId": "location-uuid-here"
+}
+
+Response (201 Created):
+{
+  "id": "user-uuid",
+  "username": "johndoe",
+  "email": "john@example.com",
+  "role": "USER"
+}
+```
+
+### POST /api/auth/login
+Login with username/email and password
+```json
+Request:
+{
+  "username": "johndoe",
+  "password": "SecurePass123"
+}
+
+Response (200 OK):
+{
+  "token": "eyJhbGc...",
+  "userId": "user-uuid",
+  "username": "johndoe",
+  "role": "USER",
+  "requiresTwoFactor": false
+}
+```
+
+### POST /api/auth/verify-2fa
+Verify two-factor authentication code
+```json
+Request:
+{
+  "userId": "user-uuid",
+  "code": "123456"
+}
+
+Response (200 OK):
+{
+  "token": "eyJhbGc...",
+  "message": "2FA verification successful"
+}
+```
+
+### GET /api/auth/me
+Get current authenticated user (requires JWT token in Authorization header)
+```
+GET /api/auth/me
+Headers: Authorization: Bearer eyJhbGc...
+
+Response (200 OK):
+{
+  "id": "user-uuid",
+  "username": "johndoe",
+  "email": "john@example.com",
+  "role": "USER"
+}
+```
+
+## User Endpoints
+
+### GET /api/users
+Get all users (Admin only)
+```
+GET /api/users
+
+Response (200 OK):
+[
+  {
+    "id": "user-uuid",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "role": "USER"
+  }
+]
+```
+
+### GET /api/users/{id}
+Get user by ID
+```
+GET /api/users/user-uuid
+
+Response (200 OK):
+{
+  "id": "user-uuid",
+  "username": "johndoe",
+  "email": "john@example.com",
+  "role": "USER"
+}
+```
+
+### PUT /api/users/{id}
+Update user
+```json
+PUT /api/users/user-uuid
+{
+  "firstName": "Jane",
+  "lastName": "Doe"
+}
+
+Response (200 OK):
+{
+  "id": "user-uuid",
+  "username": "johndoe",
+  "firstName": "Jane",
+  "lastName": "Doe"
+}
+```
+
+### DELETE /api/users/{id}
+Delete user (Admin only)
+```
+DELETE /api/users/user-uuid
+
+Response (200 OK):
+{
+  "message": "User deleted successfully"
+}
+```
+
+## Workspace Endpoints
+
+### GET /api/workspaces/my
+Get current user's workspaces
+```
+GET /api/workspaces/my
+
+Response (200 OK):
+[
+  {
+    "id": "workspace-uuid",
+    "name": "My Workspace",
+    "description": "Personal notes",
+    "icon": "📝"
+  }
+]
+```
+
+### POST /api/workspaces
+Create a workspace
+```json
+POST /api/workspaces
+{
+  "name": "Project Notes",
+  "description": "Notes for my project",
+  "owner": {
+    "id": "user-uuid"
+  }
+}
+
+Response (201 Created):
+{
+  "id": "workspace-uuid",
+  "name": "Project Notes",
+  "description": "Notes for my project"
+}
+```
+
+### DELETE /api/workspaces/{id}
+Delete workspace
+```
+DELETE /api/workspaces/workspace-uuid
+
+Response (200 OK):
+{
+  "message": "Workspace deleted successfully"
+}
+```
+
+## Page Endpoints
+
+### GET /api/pages/my
+Get current user's pages
+```
+GET /api/pages/my
+
+Response (200 OK):
+[
+  {
+    "id": "page-uuid",
+    "title": "My Page",
+    "content": "Page content..."
+  }
+]
+```
+
+### POST /api/pages
+Create a page
+```json
+POST /api/pages
+{
+  "title": "New Page",
+  "content": "Page content",
+  "workspace": {
+    "id": "workspace-uuid"
+  },
+  "user": {
+    "id": "user-uuid"
+  }
+}
+
+Response (201 Created):
+{
+  "id": "page-uuid",
+  "title": "New Page",
+  "content": "Page content"
+}
+```
+
+### PUT /api/pages/{id}
+Update page
+```json
+PUT /api/pages/page-uuid
+{
+  "title": "Updated Title",
+  "content": "Updated content"
+}
+
+Response (200 OK):
+{
+  "id": "page-uuid",
+  "title": "Updated Title",
+  "content": "Updated content"
+}
+```
+
+### DELETE /api/pages/{id}
+Delete page
+```
+DELETE /api/pages/page-uuid
+
+Response (200 OK):
+{
+  "message": "Page deleted successfully"
+}
+```
+
+## Location Endpoints
+
+### GET /api/locations/provinces
+Get all provinces
+```
+GET /api/locations/provinces
+
+Response (200 OK):
+[
+  {
+    "id": "location-uuid",
+    "name": "Kigali City",
+    "code": "11",
+    "type": "PROVINCE"
+  }
+]
+```
+
+### GET /api/locations/{parentId}/children
+Get child locations (districts, sectors, etc.)
+```
+GET /api/locations/location-uuid/children
+
+Response (200 OK):
+[
+  {
+    "id": "child-uuid",
+    "name": "Gasabo",
+    "code": "1101",
+    "type": "DISTRICT"
+  }
+]
+```
+
+## Notification Endpoints
+
+### GET /api/notifications/my
+Get current user's notifications
+```
+GET /api/notifications/my
+
+Response (200 OK):
+[
+  {
+    "id": "notif-uuid",
+    "message": "You were added to workspace",
+    "type": "WORKSPACE_INVITE",
+    "isRead": false,
+    "createdAt": "2025-12-20T10:00:00"
+  }
+]
+```
+
+### PUT /api/notifications/{id}/read
+Mark notification as read
+```
+PUT /api/notifications/notif-uuid/read
+
+Response (200 OK):
+{
+  "message": "Notification marked as read"
+}
+```
+
+## Tag Endpoints
+
+### GET /api/tags
+Get all tags
+```
+GET /api/tags
+
+Response (200 OK):
+[
+  {
+    "id": "tag-uuid",
+    "name": "Important",
+    "color": "#FF0000"
+  }
+]
+```
+
+### POST /api/tags
+Create a tag
+```json
+POST /api/tags
+{
+  "name": "Work",
+  "color": "#0000FF"
+}
+
+Response (201 Created):
+{
+  "id": "tag-uuid",
+  "name": "Work",
+  "color": "#0000FF"
+}
+```
+
+## Testing Examples
+
+### Test Registration
+```bash
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "email": "test@example.com",
+    "password": "Test123!",
+    "firstName": "Test",
+    "lastName": "User"
+  }'
+```
+
+### Test Login
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "password": "Test123!"
+  }'
+```
+
+### Test Get Current User
+```bash
+curl -X GET http://localhost:8080/api/auth/me \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
+```
+
+### Test Create Page
+```bash
+curl -X POST http://localhost:8080/api/pages \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -d '{
+    "title": "My First Page",
+    "content": "This is my first page content",
+    "workspace": {"id": "workspace-uuid"},
+    "user": {"id": "user-uuid"}
+  }'
+```
