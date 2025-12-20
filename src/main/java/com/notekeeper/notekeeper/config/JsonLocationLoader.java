@@ -27,20 +27,13 @@ public class JsonLocationLoader implements CommandLineRunner {
         boolean hasData = locationRepository.count() > 0;
         boolean hasVillages = locationRepository.existsByType(LocationType.VILLAGE);
 
+        // Only load if no data exists at all
+        // If incomplete data exists, we won't reload to avoid foreign key issues
         if (hasData && !hasVillages) {
             System.out.println("⚠️ Detected incomplete location data (missing Villages).");
-            System.out.println("♻️ Cleaning up old locations to reload full hierarchy...");
-            try {
-                // Warning: This deletes all locations. 
-                // If users have foreign keys to these locations, this might fail unless ON DELETE SET NULL is configured,
-                // or if we break the links first. For now, we attempt to delete.
-                locationRepository.deleteAllInBatch(); 
-                System.out.println("✅ Old locations deleted.");
-                hasData = false;
-            } catch (Exception e) {
-                System.err.println("❌ Failed to delete old locations: " + e.getMessage());
-                System.err.println("👉 Please manually clear the 'locations' table to enable reloading.");
-            }
+            System.out.println("⚠️ Skipping reload to avoid foreign key constraint issues.");
+            System.out.println("💡 To reload: manually delete all locations and restart the application.");
+            return;
         }
 
         if (!hasData) {

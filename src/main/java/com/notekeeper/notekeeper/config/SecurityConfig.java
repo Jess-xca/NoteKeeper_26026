@@ -45,6 +45,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
+                .requestMatchers("/api/users").permitAll()  // Allow user registration
+                .requestMatchers("/api/locations/**").permitAll()  // Allow location lookups
+                .requestMatchers("/api/profiles/**").permitAll()  // Allow profile access (needed during registration)
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
