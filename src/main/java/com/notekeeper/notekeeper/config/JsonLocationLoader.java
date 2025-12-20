@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.notekeeper.notekeeper.model.Location;
 import com.notekeeper.notekeeper.model.LocationType;
 import com.notekeeper.notekeeper.repository.LocationRepository;
+import com.notekeeper.notekeeper.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.ClassPathResource;
@@ -21,22 +22,34 @@ public class JsonLocationLoader implements CommandLineRunner {
     @Autowired
     private LocationRepository locationRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private jakarta.persistence.EntityManager entityManager;
+
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        boolean hasData = locationRepository.count() > 0;
-        boolean hasVillages = locationRepository.existsByType(LocationType.VILLAGE);
+        boolean hasNyarugenge = locationRepository.existsByName("Nyarugenge");
 
-        // Only load if no data exists at all
-        // If incomplete data exists, we won't reload to avoid foreign key issues
-        if (hasData && !hasVillages) {
-            System.out.println("⚠️ Detected incomplete location data (missing Villages).");
-            System.out.println("⚠️ Skipping reload to avoid foreign key constraint issues.");
-            System.out.println("💡 To reload: manually delete all locations and restart the application.");
-            return;
+        // Force reload if Nyarugenge is missing
+        if (!hasNyarugenge && locationRepository.count() > 0) {
+            System.out.println("⚠️ Detected incomplete location data (Missing Nyarugenge).");
+            System.out.println("⚠️ Performing HARD WIPE (TRUNCATE CASCADE) to reload full dataset...");
+            
+            // Use native SQL to truncate tables and cascade to everything (users, pages, etc.)
+            // exact table names: locations, users (and joined/dependent tables)
+            // Postgres requires CASCADE to remove headers
+            
+            entityManager.createNativeQuery("TRUNCATE TABLE locations, users CASCADE").executeUpdate();
+            
+            System.out.println("✅ Database TRUNCATED successfully.");
+            
+            // Reset repository caching if any (not needed for transaction script)
         }
 
-        if (!hasData) {
+        if (locationRepository.count() == 0) {
             System.out.println("Processing Location.json (Full Hierarchy)...");
             long startTime = System.currentTimeMillis();
             loadLocationsFromJson();
