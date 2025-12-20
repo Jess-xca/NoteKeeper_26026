@@ -4,7 +4,6 @@ import com.notekeeper.notekeeper.dto.UserDTO;
 import com.notekeeper.notekeeper.dto.ChangePasswordRequest;
 import com.notekeeper.notekeeper.mapper.DTOMapper;
 import com.notekeeper.notekeeper.model.User;
-import com.notekeeper.notekeeper.repository.UserRepository;
 import com.notekeeper.notekeeper.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -22,9 +21,6 @@ public class UserController {
 
     @Autowired
     private UserService userService;
-
-    @Autowired
-    private UserRepository userRepository;
 
     @Autowired
     private DTOMapper dtoMapper;
@@ -117,7 +113,8 @@ public class UserController {
     }
 
     @PutMapping("/{id}/change-password")
-    public ResponseEntity<Map<String, String>> changePassword(@PathVariable String id, @RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<Map<String, String>> changePassword(@PathVariable String id,
+            @RequestBody ChangePasswordRequest request) {
         if (request.getCurrentPassword() == null || request.getCurrentPassword().trim().isEmpty()) {
             throw new com.notekeeper.notekeeper.exception.BadRequestException("Current password is required");
         }

@@ -9,7 +9,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
 import com.notekeeper.notekeeper.exception.BadRequestException;

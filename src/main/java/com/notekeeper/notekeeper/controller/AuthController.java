@@ -16,8 +16,6 @@ import com.notekeeper.notekeeper.model.PasswordResetToken;
 import com.notekeeper.notekeeper.model.TwoFactorCode;
 import com.notekeeper.notekeeper.security.JwtUtil;
 import com.notekeeper.notekeeper.exception.BadRequestException;
-import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
-import com.notekeeper.notekeeper.repository.LocationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;

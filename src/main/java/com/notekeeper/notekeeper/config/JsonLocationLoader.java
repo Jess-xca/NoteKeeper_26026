@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.notekeeper.notekeeper.model.Location;
 import com.notekeeper.notekeeper.model.LocationType;
 import com.notekeeper.notekeeper.repository.LocationRepository;
-import com.notekeeper.notekeeper.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.ClassPathResource;
@@ -14,16 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Component
 public class JsonLocationLoader implements CommandLineRunner {
 
     @Autowired
     private LocationRepository locationRepository;
-
-    @Autowired
-    private UserRepository userRepository;
 
     @Autowired
     private jakarta.persistence.EntityManager entityManager;
@@ -33,19 +28,13 @@ public class JsonLocationLoader implements CommandLineRunner {
     public void run(String... args) throws Exception {
         boolean hasNyarugenge = locationRepository.existsByName("Nyarugenge");
 
-        // Force reload if Nyarugenge is missing
         if (!hasNyarugenge && locationRepository.count() > 0) {
             System.out.println("⚠️ Detected incomplete location data (Missing Nyarugenge).");
             System.out.println("⚠️ Performing HARD WIPE (TRUNCATE CASCADE) to reload full dataset...");
-            
-            // Use native SQL to truncate tables and cascade to everything (users, pages, etc.)
-            // exact table names: locations, users (and joined/dependent tables)
-            // Postgres requires CASCADE to remove headers
-            
             entityManager.createNativeQuery("TRUNCATE TABLE locations, users CASCADE").executeUpdate();
-            
+
             System.out.println("✅ Database TRUNCATED successfully.");
-            
+
             // Reset repository caching if any (not needed for transaction script)
         }
 
@@ -61,12 +50,14 @@ public class JsonLocationLoader implements CommandLineRunner {
     private void loadLocationsFromJson() throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         InputStream inputStream = new ClassPathResource("Location.json").getInputStream();
-        List<Map<String, Object>> rawLocations = mapper.readValue(inputStream, new TypeReference<List<Map<String, Object>>>(){});
+        List<Map<String, Object>> rawLocations = mapper.readValue(inputStream,
+                new TypeReference<List<Map<String, Object>>>() {
+                });
 
         // 1. Load Provinces
         // Use Maps to prevent duplicates before saving
         Map<String, Location> provinceMap = new HashMap<>();
-        
+
         for (Map<String, Object> entry : rawLocations) {
             String code = String.valueOf(entry.get("province_code"));
             if (!provinceMap.containsKey(code)) {
@@ -89,11 +80,11 @@ public class JsonLocationLoader implements CommandLineRunner {
             if (!districtMap.containsKey(code)) {
                 String name = (String) entry.get("district_name");
                 Location district = new Location(name, code, LocationType.DISTRICT);
-                
+
                 // Set Parent
                 String parentCode = String.valueOf(entry.get("province_code"));
                 district.setParent(provinceMap.get(parentCode));
-                
+
                 districtMap.put(code, district);
             }
         }
@@ -111,10 +102,10 @@ public class JsonLocationLoader implements CommandLineRunner {
             if (!sectorMap.containsKey(code)) {
                 String name = (String) entry.get("sector_name");
                 Location sector = new Location(name, code, LocationType.SECTOR);
-                
+
                 String parentCode = String.valueOf(entry.get("district_code"));
                 sector.setParent(districtMap.get(parentCode));
-                
+
                 sectorMap.put(code, sector);
             }
         }
@@ -125,20 +116,20 @@ public class JsonLocationLoader implements CommandLineRunner {
             sectorMap.put(loc.getCode(), loc);
         }
         System.out.println("Loaded " + savedSectors.size() + " Sectors");
-        
+
         // 4. Load Cells
         Map<String, Location> cellMap = new HashMap<>();
         for (Map<String, Object> entry : rawLocations) {
             Object cellCodeObj = entry.get("cell_code");
             String code = String.valueOf(cellCodeObj); // can be Integer or String in JSON
-            
+
             if (!cellMap.containsKey(code)) {
                 String name = (String) entry.get("cell_name");
                 Location cell = new Location(name, code, LocationType.CELL);
-                
+
                 String parentCode = (String) entry.get("sector_code");
                 cell.setParent(sectorMap.get(parentCode));
-                
+
                 cellMap.put(code, cell);
             }
         }
@@ -155,19 +146,19 @@ public class JsonLocationLoader implements CommandLineRunner {
         Map<String, Location> villageMap = new HashMap<>();
         for (Map<String, Object> entry : rawLocations) {
             Object villageCodeObj = entry.get("village_code");
-            String code = String.valueOf(villageCodeObj); 
-            
+            String code = String.valueOf(villageCodeObj);
+
             if (!villageMap.containsKey(code)) {
                 String name = (String) entry.get("village_name");
                 Location village = new Location(name, code, LocationType.VILLAGE);
-                
+
                 String parentCode = String.valueOf(entry.get("cell_code"));
                 village.setParent(cellMap.get(parentCode));
-                
+
                 villageMap.put(code, village);
             }
         }
-        // Save in chunks if needed, but 15k is okay for saveAll usually
+        // Save in chunks if needed
         locationRepository.saveAll(villageMap.values());
         System.out.println("Loaded " + villageMap.size() + " Villages");
     }

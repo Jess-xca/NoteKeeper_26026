@@ -5,7 +5,6 @@ import com.notekeeper.notekeeper.model.User;
 import com.notekeeper.notekeeper.model.Workspace;
 import com.notekeeper.notekeeper.repository.PageRepository;
 import com.notekeeper.notekeeper.repository.TagRepository;
-import com.notekeeper.notekeeper.repository.PageTagRepository;
 import com.notekeeper.notekeeper.repository.UserRepository;
 import com.notekeeper.notekeeper.repository.WorkspaceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,10 +13,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
-import com.notekeeper.notekeeper.exception.BadRequestException;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class PageService {
@@ -33,9 +30,6 @@ public class PageService {
 
     @Autowired
     private TagRepository tagRepository;
-
-    @Autowired
-    private PageTagRepository pageTagRepository;
 
     // CREATE
     @Transactional
@@ -109,19 +103,18 @@ public class PageService {
         // Sync tags if they are provided in pageDetails
         if (pageDetails.getPageTags() != null) {
             // Remove existing tags that are not in the new list
-            page.getPageTags().removeIf(existingPt -> 
-                pageDetails.getPageTags().stream()
-                    .noneMatch(newPt -> newPt.getTag().getId().equals(existingPt.getTag().getId()))
-            );
+            page.getPageTags().removeIf(existingPt -> pageDetails.getPageTags().stream()
+                    .noneMatch(newPt -> newPt.getTag().getId().equals(existingPt.getTag().getId())));
 
             // Add new tags that are not already present
             for (com.notekeeper.notekeeper.model.PageTag newPt : pageDetails.getPageTags()) {
                 boolean exists = page.getPageTags().stream()
-                    .anyMatch(existingPt -> existingPt.getTag().getId().equals(newPt.getTag().getId()));
-                
+                        .anyMatch(existingPt -> existingPt.getTag().getId().equals(newPt.getTag().getId()));
+
                 if (!exists) {
                     com.notekeeper.notekeeper.model.Tag tag = tagRepository.findById(newPt.getTag().getId())
-                            .orElseThrow(() -> new ResourceNotFoundException("Tag not found: " + newPt.getTag().getId()));
+                            .orElseThrow(
+                                    () -> new ResourceNotFoundException("Tag not found: " + newPt.getTag().getId()));
                     com.notekeeper.notekeeper.model.PageTag pt = new com.notekeeper.notekeeper.model.PageTag(page, tag);
                     page.getPageTags().add(pt);
                 }

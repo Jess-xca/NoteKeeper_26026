@@ -14,7 +14,6 @@ import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
 import com.notekeeper.notekeeper.exception.BadRequestException;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class WorkspaceService {
