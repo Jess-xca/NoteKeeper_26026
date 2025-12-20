@@ -353,6 +353,376 @@ Response (201 Created):
 }
 ```
 
+## User Profile Endpoints
+
+### GET /api/user-profiles/my
+Get current user's profile
+```
+GET /api/user-profiles/my
+
+Response (200 OK):
+{
+  "id": "profile-uuid",
+  "user": {
+    "id": "user-uuid",
+    "username": "johndoe"
+  },
+  "bio": "Software developer",
+  "theme": "LIGHT",
+  "language": "en",
+  "timezone": "UTC+2"
+}
+```
+
+### PUT /api/user-profiles/my
+Update current user's profile
+```json
+PUT /api/user-profiles/my
+{
+  "bio": "Updated bio",
+  "theme": "DARK",
+  "language": "en",
+  "timezone": "UTC+2"
+}
+
+Response (200 OK):
+{
+  "id": "profile-uuid",
+  "bio": "Updated bio",
+  "theme": "DARK"
+}
+```
+
+## Workspace Member Endpoints
+
+### GET /api/workspace-members/{workspaceId}
+Get members of a workspace
+```
+GET /api/workspace-members/workspace-uuid
+
+Response (200 OK):
+[
+  {
+    "id": "member-uuid",
+    "user": {
+      "id": "user-uuid",
+      "username": "johndoe"
+    },
+    "workspace": {
+      "id": "workspace-uuid",
+      "name": "My Workspace"
+    },
+    "role": "MEMBER",
+    "joinedAt": "2025-12-20T10:00:00"
+  }
+]
+```
+
+### POST /api/workspace-members
+Add member to workspace
+```json
+POST /api/workspace-members
+{
+  "userId": "user-uuid",
+  "workspaceId": "workspace-uuid",
+  "role": "MEMBER"
+}
+
+Response (201 Created):
+{
+  "id": "member-uuid",
+  "role": "MEMBER"
+}
+```
+
+### PUT /api/workspace-members/{id}
+Update member role
+```json
+PUT /api/workspace-members/member-uuid
+{
+  "role": "ADMIN"
+}
+
+Response (200 OK):
+{
+  "id": "member-uuid",
+  "role": "ADMIN"
+}
+```
+
+### DELETE /api/workspace-members/{id}
+Remove member from workspace
+```
+DELETE /api/workspace-members/member-uuid
+
+Response (200 OK):
+{
+  "message": "Member removed successfully"
+}
+```
+
+## Page Share Endpoints
+
+### GET /api/page-shares/my-shared
+Get pages shared by current user
+```
+GET /api/page-shares/my-shared
+
+Response (200 OK):
+[
+  {
+    "id": "share-uuid",
+    "page": {
+      "id": "page-uuid",
+      "title": "Shared Page"
+    },
+    "sharedWith": {
+      "id": "user-uuid",
+      "username": "johndoe"
+    },
+    "permission": "READ",
+    "sharedAt": "2025-12-20T10:00:00"
+  }
+]
+```
+
+### GET /api/page-shares/shared-with-me
+Get pages shared with current user
+```
+GET /api/page-shares/shared-with-me
+
+Response (200 OK):
+[
+  {
+    "id": "share-uuid",
+    "page": {
+      "id": "page-uuid",
+      "title": "Shared Page"
+    },
+    "sharedBy": {
+      "id": "user-uuid",
+      "username": "johndoe"
+    },
+    "permission": "READ"
+  }
+]
+```
+
+### POST /api/page-shares
+Share a page with another user
+```json
+POST /api/page-shares
+{
+  "pageId": "page-uuid",
+  "sharedWithId": "user-uuid",
+  "permission": "READ"
+}
+
+Response (201 Created):
+{
+  "id": "share-uuid",
+  "permission": "READ"
+}
+```
+
+### PUT /api/page-shares/{id}
+Update share permission
+```json
+PUT /api/page-shares/share-uuid
+{
+  "permission": "EDIT"
+}
+
+Response (200 OK):
+{
+  "id": "share-uuid",
+  "permission": "EDIT"
+}
+```
+
+### DELETE /api/page-shares/{id}
+Stop sharing a page
+```
+DELETE /api/page-shares/share-uuid
+
+Response (200 OK):
+{
+  "message": "Page share removed successfully"
+}
+```
+
+## Attachment Endpoints
+
+### GET /api/attachments/page/{pageId}
+Get attachments for a page
+```
+GET /api/attachments/page/page-uuid
+
+Response (200 OK):
+[
+  {
+    "id": "attachment-uuid",
+    "fileName": "document.pdf",
+    "fileType": "application/pdf",
+    "fileSize": 1024000,
+    "filePath": "/uploads/attachments/document.pdf",
+    "uploadedAt": "2025-12-20T10:00:00"
+  }
+]
+```
+
+### POST /api/attachments/upload
+Upload attachment to a page
+```
+POST /api/attachments/upload
+Content-Type: multipart/form-data
+
+Form Data:
+- file: [binary file data]
+- pageId: page-uuid
+
+Response (201 Created):
+{
+  "id": "attachment-uuid",
+  "fileName": "document.pdf",
+  "fileSize": 1024000
+}
+```
+
+### GET /api/attachments/download/{id}
+Download attachment
+```
+GET /api/attachments/download/attachment-uuid
+
+Response (200 OK):
+[Binary file data]
+```
+
+### DELETE /api/attachments/{id}
+Delete attachment
+```
+DELETE /api/attachments/attachment-uuid
+
+Response (200 OK):
+{
+  "message": "Attachment deleted successfully"
+}
+```
+
+## Password Reset Endpoints
+
+### POST /api/auth/forgot-password
+Request password reset
+```json
+POST /api/auth/forgot-password
+{
+  "email": "user@example.com"
+}
+
+Response (200 OK):
+{
+  "message": "Password reset email sent"
+}
+```
+
+### POST /api/auth/reset-password
+Reset password with token
+```json
+POST /api/auth/reset-password
+{
+  "token": "reset-token-here",
+  "newPassword": "NewSecurePass123!"
+}
+
+Response (200 OK):
+{
+  "message": "Password reset successfully"
+}
+```
+
+## Google OAuth Endpoints
+
+### POST /api/auth/google/login
+Login with Google OAuth
+```json
+POST /api/auth/google/login
+{
+  "idToken": "google-id-token-here"
+}
+
+Response (200 OK):
+{
+  "token": "jwt-token-here",
+  "user": {
+    "id": "user-uuid",
+    "username": "johndoe"
+  }
+}
+```
+
+## Error Response Examples
+
+### 400 Bad Request
+```json
+{
+  "timestamp": "2025-12-20T10:00:00",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "path": "/api/auth/register",
+  "errors": [
+    {
+      "field": "email",
+      "message": "Email is required"
+    }
+  ]
+}
+```
+
+### 401 Unauthorized
+```json
+{
+  "timestamp": "2025-12-20T10:00:00",
+  "status": 401,
+  "error": "Unauthorized",
+  "message": "Invalid or expired token",
+  "path": "/api/users/profile"
+}
+```
+
+### 403 Forbidden
+```json
+{
+  "timestamp": "2025-12-20T10:00:00",
+  "status": 403,
+  "error": "Forbidden",
+  "message": "Access denied",
+  "path": "/api/users"
+}
+```
+
+### 404 Not Found
+```json
+{
+  "timestamp": "2025-12-20T10:00:00",
+  "status": 404,
+  "error": "Not Found",
+  "message": "User not found",
+  "path": "/api/users/invalid-uuid"
+}
+```
+
+### 500 Internal Server Error
+```json
+{
+  "timestamp": "2025-12-20T10:00:00",
+  "status": 500,
+  "error": "Internal Server Error",
+  "message": "An unexpected error occurred",
+  "path": "/api/pages"
+}
+```
+
 ## Testing Examples
 
 ### Test Registration
@@ -394,5 +764,29 @@ curl -X POST http://localhost:8080/api/pages \
     "content": "This is my first page content",
     "workspace": {"id": "workspace-uuid"},
     "user": {"id": "user-uuid"}
+  }'
+```
+
+### Test File Upload
+```bash
+curl -X POST http://localhost:8080/api/attachments/upload \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
+  -F "file=@/path/to/your/file.pdf" \
+  -F "pageId=page-uuid"
+```
+
+### Test Password Reset
+```bash
+# Request reset
+curl -X POST http://localhost:8080/api/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+
+# Reset with token (replace TOKEN with actual token from email)
+curl -X POST http://localhost:8080/api/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "TOKEN",
+    "newPassword": "NewSecurePass123!"
   }'
 ```

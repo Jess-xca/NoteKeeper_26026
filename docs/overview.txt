@@ -1,268 +1,176 @@
-# NoteKeeper Backend - Project Overview
+# NoteKeeper - Advanced Note-Taking Application
 
-## Authentication & Security
+## Project Overview
 
-### JWT (JSON Web Tokens)
-**What is it?**
-JWT is a compact, URL-safe token format used for securely transmitting information between parties. In NoteKeeper, JWTs are used for stateless authentication.
+NoteKeeper is a comprehensive note-taking application built with Spring Boot that provides users with powerful tools for organizing, managing, and sharing their notes. The application features a hierarchical workspace system, rich text editing, tagging, file attachments, and collaborative features.
 
-**How it's used:**
-1. User logs in with username/password
-2. Backend validates credentials and generates a JWT containing user info
-3. JWT is sent to frontend and stored (usually in localStorage)
-4. Every subsequent request includes the JWT in the Authorization header: `Authorization: Bearer <token>`
-5. Backend validates the JWT on each request to authenticate the user
+## Key Features
 
-**Why JWT?**
-- Stateless: No session storage needed on the server
-- Scalable: Works across multiple servers
-- Secure: Cryptographically signed to prevent tampering
-- Self-contained: Contains all necessary information about the user
+### Core Functionality
+- **User Management**: Registration, authentication, and profile management
+- **Workspace Organization**: Hierarchical workspace structure for organizing notes
+- **Rich Note Editing**: Create and edit pages with rich content
+- **Tagging System**: Organize notes with customizable tags
+- **File Attachments**: Upload and manage file attachments to notes
+- **Sharing & Collaboration**: Share notes with other users
+- **Notifications**: Real-time notifications for important events
 
-**Implementation:**
-- Library: `io.jsonwebtoken` (jjwt)
-- Secret Key: Stored in `application.properties` as `jwt.secret`
-- Token Expiration: 24 hours (configurable)
-- Signing Algorithm: HS256 (HMAC with SHA-256)
+### Security Features
+- **JWT Authentication**: Secure token-based authentication
+- **Two-Factor Authentication (2FA)**: Enhanced security with 2FA support
+- **Role-Based Access Control**: Admin and user roles with different permissions
+- **Password Reset**: Secure password recovery mechanism
+- **Google OAuth Integration**: Login with Google accounts
 
-**Example JWT Flow:**
-```
-Login Request → Validate Credentials → Generate JWT → Return Token
-↓
-Frontend stores token
-↓
-API Request with "Authorization: Bearer <token>"
-↓
-JwtAuthenticationFilter extracts & validates token
-↓
-Sets Authentication in SecurityContext
-↓
-Endpoint processes request with authenticated user
-```
-
-### BCrypt Password Hashing
-**What is it?**
-BCrypt is a password hashing function designed to be slow, making brute-force attacks impractical.
-
-**How it's used:**
-```java
-// During registration
-String hashedPassword = passwordEncoder.encode(plainTextPassword);
-user.setPassword(hashedPassword);
-
-// During login
-if (passwordEncoder.matches(providedPassword, storedHashedPassword)) {
-    // Password correct
-}
-```
-
-**Why BCrypt?**
-- Adaptive: Can increase rounds as computers get faster
-- Salt automatically included
-- Industry standard for password security
-
-### Spring Security Configuration
-**Components:**
-1. `SecurityConfig.java` - Main security configuration
-   - Configures which endpoints are public vs. authenticated
-   - Sets up JWT filter
-   - Disables session management (stateless)
-   - Configures CORS for frontend access
-
-2. `JwtAuthenticationFilter.java` - Intercepts every request
-   - Extracts JWT from Authorization header
-   - Validates token
-   - Sets user in SecurityContext
-
-3. `CustomUserDetailsService.java` - Loads user for authentication
-   - Implements Spring Security's `UserDetailsService`
-   - Returns `UserPrincipal` wrapping our `User` entity
-
-4. `UserPrincipal.java` - Wraps User for Spring Security
-   - Implements `UserDetails` interface
-   - Provides user info to Security Context
-   - Enables `@AuthenticationPrincipal` in controllers
-
-**Public Endpoints** (no authentication required):
-- `/api/auth/**` - login, register, password reset
-- `/api/users` (POST only) - user registration
-- `/api/locations/**` - location lookups
-- `/api/profiles/**` - profile access
-- `/h2-console/**` - database console (dev only)
-
-**Protected Endpoints** (require valid JWT):
-- All other `/api/**` endpoints
-
-### Two-Factor Authentication (2FA)
-**How it works:**
-1. User enables 2FA in their profile
-2. On
-
- login, if 2FA is enabled:
-   - Backend generates 6-digit code
-   - Code sent to user's email via SMTP
-   - Login response includes `requiresTwoFactor: true`
-3. Frontend prompts for 2FA code
-4. User enters code, backend validates
-5. If valid, returns full JWT token
-
-**Implementation:**
-- Random 6-digit code generation
-- Stored in `two_factor_codes` table with expiration
-- Email sent via `EmailService`
-- Code valid for 10 minutes
-
-## Location Management
-
-### Rwanda Location Hierarchy
-**Structure:**
-1. Province (5 provinces)
-2. District (30 districts)
-3. Sector (~416 sectors)
-4. Cell (~2,148 cells)
-5. Village (~14,837 villages)
-
-**How it's loaded:**
-- `JsonLocationLoader.java` runs on application startup
-- Reads from `resources/Location.json`
-- Loads hierarchically (provinces → districts → sectors → cells → villages)
-- Uses parent-child relationships
-- Stores in `locations` table
-
-**API Usage:**
-```
-GET /api/locations/provinces → All provinces
-GET /api/locations/{provinceId}/children → Districts in province
-GET /api/locations/{districtId}/children → Sectors in district
-etc.
-```
-
-**Why this approach?**
-- Accurate Rwanda administrative structure
-- Efficient hierarchical queries
-- Supports user location assignment
-- Can filter/search users by location
-
-## Email Service (SMTP)
-
-**What is it?**
-SMTP (Simple Mail Transfer Protocol) is used to send emails from the application.
-
-**How it's configured:**
-```properties
-spring.mail.host=smtp.gmail.com
-spring.mail.port=587
-spring.mail.username=your-email@gmail.com
-spring.mail.password=your-app-password
-```
-
-**What it's used for:**
-1. **2FA Codes** - Sends 6-digit verification codes
-2. **Password Reset** - Sends reset links
-3. **Welcome Emails** - Sends welcome message on registration (optional)
-4. **Notifications** - Can send email notifications for workspace invites (optional)
-
-**Implementation:**
-- `EmailService.java` wraps Spring's `JavaMailSender`
-- Uses MimeMessage for HTML emails
-- Error handling for failed sends
-
-## Database Schema
-
-### Core Tables
-1. **users** - User accounts and authentication
-2. **user_profiles** - Extended user information
-3. **workspaces** - User workspaces/folders
-4. **pages** - Note pages/documents
-5. **tags** - Custom tags for organization
-6. **locations** - Rwanda administrative divisions
-
-### Relationship Tables
-7. **workspace_members** - Many-to-many users ↔ workspaces with roles
-8. **page_tags** - Many-to-many pages ↔ tags
-9. **page_shares** - Page sharing with specific users
-
-### Supporting Tables
-10. **attachments** - Files attached to pages
-11. **notifications** - User notifications
-12. **password_reset_tokens** - Temporary tokens for password reset
-13. **two_factor_codes** - Temporary 2FA verification codes
+### Advanced Features
+- **Location-Based Data**: Pre-loaded with Rwanda's administrative divisions
+- **Email Notifications**: SMTP-based email sending for notifications
+- **File Upload Management**: Configurable file size limits and storage
+- **Audit Logging**: Track user activities and system events
 
 ## Technology Stack
 
 ### Backend
 - **Framework**: Spring Boot 3.5.7
 - **Language**: Java 17
-- **Database**: H2 (development), can use PostgreSQL (production)
-- **ORM**: Hibernate/JPA
-- **Security**: Spring Security 6.2.12
-- **JWT**: jjwt 0.12.6
-- **Email**: Spring Boot Starter Mail
+- **Database**: PostgreSQL
+- **ORM**: Spring Data JPA with Hibernate
+- **Security**: Spring Security with JWT
 - **Build Tool**: Maven
 
 ### Key Dependencies
-- spring-boot-starter-web - REST API
-- spring-boot-starter-data-jpa - Database access
-- spring-boot-starter-security - Authentication/authorization
-- spring-boot-starter-mail - Email sending
-- jjwt-api, jjwt-impl, jjwt-jackson - JWT handling
-- lombok - Reduce boilerplate (optional)
+- **Spring Boot Starter Web**: REST API development
+- **Spring Boot Starter Data JPA**: Database operations
+- **Spring Boot Starter Security**: Authentication and authorization
+- **Spring Boot Starter Mail**: Email functionality
+- **Spring Boot Starter Validation**: Input validation
+- **JJWT**: JSON Web Token handling
+- **Google API Client**: OAuth2 integration
+- **PostgreSQL Driver**: Database connectivity
 
-## Architecture Patterns
+## Architecture
 
-### Exception-Based Error Handling
-- Custom exceptions: `ResourceNotFoundException`, `BadRequestException`
-- `GlobalExceptionHandler` catches all exceptions
-- Returns consistent JSON error responses
-- Eliminates manual try-catch in controllers
+### Layered Architecture
+The application follows a clean layered architecture:
 
-### Service Layer Pattern
-- Controllers handle HTTP requests/responses
-- Services contain business logic
-- Repositories handle database access
-- Clear separation of concerns
+1. **Controller Layer**: REST API endpoints handling HTTP requests
+2. **Service Layer**: Business logic and data processing
+3. **Repository Layer**: Data access and persistence
+4. **Model Layer**: Entity definitions and data structures
+5. **DTO Layer**: Data transfer objects for API communication
+6. **Security Layer**: Authentication and authorization components
 
-### DTO Pattern
-- DTOs (Data Transfer Objects) for API responses
-- Hides internal entity structure
-- Can customize what data is exposed
-- `DTOMapper` converts entities ↔ DTOs
+### Database Schema
+The application uses a relational database with the following main entities:
 
-### Transactional Boundaries
-- `@Transactional` on all write operations
-- Ensures atomicity (all-or-nothing)
-- Automatic rollback on exceptions
-- Prevents partial state changes
+- **Users**: User accounts and profiles
+- **Workspaces**: Organizational containers for notes
+- **Pages**: Individual notes with rich content
+- **Tags**: Categorization system for notes
+- **Attachments**: File uploads associated with notes
+- **Locations**: Hierarchical location data (Province → District → Sector → Cell → Village)
+- **Notifications**: System notifications
+- **Page Shares**: Note sharing functionality
+- **Workspace Members**: Collaborative workspace access
 
-## Development & Testing
+### Security Architecture
+- **JWT Tokens**: Stateless authentication with refresh tokens
+- **Password Encryption**: BCrypt hashing for secure password storage
+- **Role-Based Permissions**: ADMIN and USER roles with different access levels
+- **CORS Configuration**: Cross-origin resource sharing setup
+- **Request Filtering**: Custom filters for authentication and logging
 
-### Running the Application
-```bash
-# Backend
-cd notekeeper
-mvn spring-boot:run
+## API Design
 
-# Access at http://localhost:8080
+### RESTful Endpoints
+The API follows REST principles with consistent URL patterns:
+- `GET /api/resource` - List resources
+- `GET /api/resource/{id}` - Get specific resource
+- `POST /api/resource` - Create new resource
+- `PUT /api/resource/{id}` - Update resource
+- `DELETE /api/resource/{id}` - Delete resource
+
+### Response Format
+All API responses follow a consistent JSON structure with proper HTTP status codes.
+
+### Authentication
+Protected endpoints require JWT tokens in the Authorization header:
+```
+Authorization: Bearer <jwt-token>
 ```
 
-### Database Console
-- H2 Console: http://localhost:8080/h2-console
-- JDBC URL: `jdbc:h2:mem:testdb`
-- Username: `sa`
-- Password: (empty)
+## Development Setup
 
-### Testing
-- Unit tests: `mvn test`
-- Integration tests: Use Postman or curl
-- Browser testing: Frontend at http://localhost:3000
+### Prerequisites
+- Java 17 or higher
+- Maven 3.6+
+- PostgreSQL 12+
+- Git
 
-## Security Best Practices
+### Configuration
+The application uses `application.properties` for configuration:
+- Database connection settings
+- JWT secret configuration
+- Email server settings
+- File upload limits
+- Google OAuth credentials
 
-1. **Never expose raw passwords** - Always hash with BCrypt
-2. **Validate all inputs** - Prevent SQL injection, XSS
-3. **Use HTTPS in production** - Encrypt data in transit
-4. **Rotate JWT secret regularly** - Use environment variables
-5. **Set appropriate CORS** - Only allow trusted origins
-6. **Implement rate limiting** - Prevent brute-force attacks (TODO)
-7. **Log security events** - Monitor for suspicious activity
-8. **Keep dependencies updated** - Patch security vulnerabilities
+### Running the Application
+1. Clone the repository
+2. Configure PostgreSQL database
+3. Update `application.properties` with your settings
+4. Run with Maven: `mvn spring-boot:run`
+5. Access at `http://localhost:8080`
+
+## Deployment
+
+### Production Considerations
+- **Database**: Use connection pooling and proper indexing
+- **Security**: Configure HTTPS and secure JWT secrets
+- **File Storage**: Consider cloud storage for attachments
+- **Monitoring**: Implement logging and health checks
+- **Scaling**: Design for horizontal scaling if needed
+
+### Environment Variables
+For production deployment, use environment variables for sensitive configuration:
+- Database credentials
+- JWT secrets
+- Email server credentials
+- Google OAuth secrets
+
+## Future Enhancements
+
+### Planned Features
+- Real-time collaboration with WebSocket
+- Advanced search and filtering
+- Note templates and automation
+- Mobile application
+- Integration with external services
+- Advanced analytics and reporting
+
+### Technical Improvements
+- Microservices architecture consideration
+- GraphQL API implementation
+- Caching layer (Redis)
+- Message queue integration
+- Containerization with Docker/Kubernetes
+
+## Contributing
+
+### Code Standards
+- Follow Java naming conventions
+- Use meaningful variable and method names
+- Add comprehensive documentation
+- Write unit tests for new features
+- Follow REST API best practices
+
+### Development Workflow
+1. Create feature branch from main
+2. Implement changes with tests
+3. Ensure code compiles and tests pass
+4. Submit pull request with description
+5. Code review and merge
+
+## Support
+
+For questions, issues, or contributions, please refer to the project documentation or contact the development team.
