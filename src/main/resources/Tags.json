@@ -1,0 +1,12 @@
+[
+  { "name": "Work", "color": "#4F46E5" },
+  { "name": "Personal", "color": "#10B981" },
+  { "name": "Ideas", "color": "#F59E0B" },
+  { "name": "Research", "color": "#6366F1" },
+  { "name": "Important", "color": "#EF4444" },
+  { "name": "To-Do", "color": "#3B82F6" },
+  { "name": "Reference", "color": "#8B5CF6" },
+  { "name": "Meeting", "color": "#EC4899" },
+  { "name": "Project", "color": "#06B6D4" },
+  { "name": "Archive", "color": "#6B7280" }
+]

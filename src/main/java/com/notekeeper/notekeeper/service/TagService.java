@@ -45,7 +45,7 @@ public class TagService {
     }
 
     public List<Tag> getTagsByUserId(String userId) {
-        return tagRepository.findTagsByUserId(userId);
+        return tagRepository.findAllByOrderByNameAsc();
     }
 
     public List<Tag> searchTags(String keyword) {
