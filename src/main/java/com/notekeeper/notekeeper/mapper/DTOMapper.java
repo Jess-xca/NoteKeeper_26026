@@ -59,6 +59,8 @@ public class DTOMapper {
             user.setGender(dto.getGender());
         if (dto.getRole() != null)
             user.setRole(dto.getRole());
+        if (dto.getPassword() != null)
+            user.setPassword(dto.getPassword());
 
         return user;
     }
@@ -186,7 +188,8 @@ public class DTOMapper {
                 tag.getId(),
                 tag.getName(),
                 tag.getColor(),
-                tag.getCreatedAt());
+                tag.getCreatedAt(),
+                tag.getPageTags() != null ? tag.getPageTags().size() : 0);
     }
 
     // WorkspaceMember Mappings

@@ -7,15 +7,17 @@ public class TagDTO {
     private String name;
     private String color;
     private LocalDateTime createdAt;
+    private Integer pageCount;
 
     public TagDTO() {
     }
 
-    public TagDTO(String id, String name, String color, LocalDateTime createdAt) {
+    public TagDTO(String id, String name, String color, LocalDateTime createdAt, Integer pageCount) {
         this.id = id;
         this.name = name;
         this.color = color;
         this.createdAt = createdAt;
+        this.pageCount = pageCount;
     }
 
     public String getId() {
@@ -48,5 +50,13 @@ public class TagDTO {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Integer getPageCount() {
+        return pageCount;
+    }
+
+    public void setPageCount(Integer pageCount) {
+        this.pageCount = pageCount;
     }
 }
