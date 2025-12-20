@@ -26,6 +26,9 @@ public class PageShareService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @Transactional
     public PageShare sharePage(String pageId, String sharedById, String email, String permission) {
         if (pageId == null || sharedById == null || email == null) {
@@ -51,7 +54,17 @@ public class PageShareService {
                 });
 
         PageShare share = new PageShare(page, sharedBy, sharedWith, permission);
-        return pageShareRepository.save(share);
+        PageShare savedShare = pageShareRepository.save(share);
+
+        // CREATE NOTIFICATION
+        notificationService.createNotification(
+                sharedWith.getId(),
+                "New Page Shared",
+                sharedBy.getFullName() + " shared a page with you: " + page.getTitle(),
+                com.notekeeper.notekeeper.model.NotificationType.SHARE
+        );
+
+        return savedShare;
     }
 
     public List<PageShare> getPageShares(String pageId) {

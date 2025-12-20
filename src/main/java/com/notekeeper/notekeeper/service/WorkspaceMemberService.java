@@ -34,6 +34,9 @@ public class WorkspaceMemberService {
     @Autowired
     private DTOMapper dtoMapper;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @Transactional
     public void addMember(String workspaceId, String userId, String role) {
         if (!WorkspaceRole.isValid(role)) {
@@ -53,6 +56,14 @@ public class WorkspaceMemberService {
         WorkspaceMember member = new WorkspaceMember(workspace, user,
                 WorkspaceRole.valueOf(role.toUpperCase()));
         workspaceMemberRepository.save(member);
+
+        // CREATE NOTIFICATION
+        notificationService.createNotification(
+                userId,
+                "Added to Workspace",
+                "You have been added to the workspace: " + workspace.getName(),
+                com.notekeeper.notekeeper.model.NotificationType.SHARE
+        );
     }
 
     @Transactional
