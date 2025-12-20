@@ -69,6 +69,21 @@ public class WorkspaceController {
         return ResponseEntity.ok(workspaceDTOs);
     }
 
+    @GetMapping("/owner/{ownerId}")
+    public ResponseEntity<List<WorkspaceDTO>> getWorkspacesByOwner(@PathVariable String ownerId) {
+        List<Workspace> workspaces = workspaceService.getWorkspacesByOwner(ownerId);
+        List<WorkspaceDTO> workspaceDTOs = workspaces.stream()
+                .map(dtoMapper::toWorkspaceDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(workspaceDTOs);
+    }
+
+    @GetMapping("/inbox/{ownerId}")
+    public ResponseEntity<WorkspaceDTO> getInboxWorkspace(@PathVariable String ownerId) {
+        Workspace inbox = workspaceService.getInboxWorkspace(ownerId);
+        return ResponseEntity.ok(dtoMapper.toWorkspaceDTO(inbox));
+    }
+
     @GetMapping("/my/inbox")
     public ResponseEntity<WorkspaceDTO> getMyInbox(@org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal) {
         Workspace inbox = workspaceService.getInboxWorkspace(principal.getId());

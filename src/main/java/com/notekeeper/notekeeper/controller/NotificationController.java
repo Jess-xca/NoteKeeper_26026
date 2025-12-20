@@ -62,6 +62,30 @@ public class NotificationController {
         return ResponseEntity.ok(count);
     }
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<NotificationDTO>> getUserNotifications(@PathVariable String userId) {
+        List<Notification> notifications = notificationService.getAllNotifications(userId);
+        List<NotificationDTO> notificationDTOs = notifications.stream()
+                .map(dtoMapper::toNotificationDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(notificationDTOs);
+    }
+
+    @GetMapping("/user/{userId}/unread")
+    public ResponseEntity<List<NotificationDTO>> getUserUnreadNotifications(@PathVariable String userId) {
+        List<Notification> notifications = notificationService.getUnreadNotifications(userId);
+        List<NotificationDTO> notificationDTOs = notifications.stream()
+                .map(dtoMapper::toNotificationDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(notificationDTOs);
+    }
+
+    @GetMapping("/user/{userId}/count")
+    public ResponseEntity<Long> countUserUnreadNotifications(@PathVariable String userId) {
+        long count = notificationService.countUnreadNotifications(userId);
+        return ResponseEntity.ok(count);
+    }
+
     @PutMapping("/{id}/mark-read")
     public ResponseEntity<java.util.Map<String, String>> markAsRead(@PathVariable String id) {
         notificationService.markAsRead(id);
