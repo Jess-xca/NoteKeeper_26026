@@ -194,8 +194,11 @@ public class PageService {
         return pageRepository.findAll(PageRequest.of(page, size));
     }
 
-    public org.springframework.data.domain.Page<Page> getUserPagesPaginated(String userId, int page, int size) {
-        return pageRepository.findByUserIdAndIsArchivedFalse(userId, PageRequest.of(page, size));
+    public org.springframework.data.domain.Page<Page> getUserPagesPaginated(String userId, int page, int size, String sortBy, String direction) {
+        Sort sort = direction.equalsIgnoreCase("asc")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        return pageRepository.findByUserIdAndIsArchivedFalse(userId, PageRequest.of(page, size, sort));
     }
 
     // STATISTICS

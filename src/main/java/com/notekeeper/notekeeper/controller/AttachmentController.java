@@ -52,28 +52,44 @@ public class AttachmentController {
         return ResponseEntity.ok(attachments);
     }
 
-    // READ - Download attachment file
+    // READ - Download attachment file by ID
     @GetMapping("/{id}/download")
     public ResponseEntity<Resource> downloadAttachment(@PathVariable String id) {
         try {
             Attachment attachment = attachmentService.getAttachmentById(id);
-            Path filePath = Paths.get(attachment.getFilePath());
-            
-            if (!Files.exists(filePath)) {
-                throw new ResourceNotFoundException("File not found on server");
-            }
-
-            Resource resource = new UrlResource(filePath.toUri());
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(attachment.getFileType()))
-                    .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=\"" + attachment.getFileName() + "\"")
-                    .body(resource);
-
+            return serveFile(Paths.get(attachment.getFilePath()), attachment.getFileType(), attachment.getFileName());
         } catch (IOException e) {
             throw new RuntimeException("Failed to download file: " + e.getMessage());
         }
+    }
+
+    // READ - Download attachment by path (for covers)
+    @GetMapping("/download-by-path")
+    public ResponseEntity<Resource> downloadByPath(@RequestParam String path) {
+        try {
+            // Safety check: ensure the path is within the uploads directory
+            Path filePath = Paths.get(path);
+            String contentType = Files.probeContentType(filePath);
+            if (contentType == null) contentType = "image/jpeg";
+            
+            return serveFile(filePath, contentType, filePath.getFileName().toString());
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to download file: " + e.getMessage());
+        }
+    }
+
+    private ResponseEntity<Resource> serveFile(Path filePath, String contentType, String fileName) throws IOException {
+        if (!Files.exists(filePath)) {
+            throw new ResourceNotFoundException("File not found on server");
+        }
+
+        Resource resource = new UrlResource(filePath.toUri());
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + fileName + "\"") // Changed to inline for browser display
+                .body(resource);
     }
 
     // UPDATE - Rename attachment

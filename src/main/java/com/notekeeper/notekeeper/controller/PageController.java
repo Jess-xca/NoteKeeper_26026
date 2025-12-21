@@ -252,9 +252,11 @@ public class PageController {
     public ResponseEntity<?> getUserPagesPaginated(
             @PathVariable String userId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "updatedAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
         try {
-            org.springframework.data.domain.Page<Page> pages = pageService.getUserPagesPaginated(userId, page, size);
+            org.springframework.data.domain.Page<Page> pages = pageService.getUserPagesPaginated(userId, page, size, sortBy, direction);
             org.springframework.data.domain.Page<PageDTO> pageDTOs = pages.map(dtoMapper::toPageDTO);
             return ResponseEntity.ok(pageDTOs);
         } catch (Exception e) {
