@@ -63,6 +63,9 @@ public class AuthController {
     @Autowired
     private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private com.notekeeper.notekeeper.service.UserService userService;
+
     @Value("${google.client.id}")
     private String googleClientId;
     
@@ -89,9 +92,9 @@ public class AuthController {
         // Verify hashed password
         if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
             System.out.println("❌ Login failed for user: " + user.getUsername());
-            System.out.println("   Input password: " + loginRequest.getPassword());
+            System.out.println("   Input password length: " + (loginRequest.getPassword() != null ? loginRequest.getPassword().length() : 0));
             System.out.println("   Stored hash: " + user.getPassword());
-            System.out.println("   Matches? " + passwordEncoder.matches(loginRequest.getPassword(), user.getPassword()));
+            System.out.println("   Encoded input would be: " + passwordEncoder.encode(loginRequest.getPassword()));
             throw new BadRequestException("Invalid username or password");
         }
 
@@ -510,31 +513,7 @@ public class AuthController {
         String token = request.get("token");
         String newPassword = request.get("newPassword");
 
-        if (token == null || newPassword == null || newPassword.trim().isEmpty()) {
-            throw new com.notekeeper.notekeeper.exception.BadRequestException("Token and new password are required");
-        }
-
-        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
-                .orElseThrow(() -> new com.notekeeper.notekeeper.exception.BadRequestException("Invalid or expired reset token"));
-
-        if (resetToken.isExpired() || resetToken.isUsed()) {
-            throw new com.notekeeper.notekeeper.exception.BadRequestException("Invalid or expired reset token");
-        }
-
-        // Fetch user explicitly to ensure we are updating the actual record in the DB
-        User user = userRepository.findById(resetToken.getUser().getId())
-                .orElseThrow(() -> new com.notekeeper.notekeeper.exception.ResourceNotFoundException("User not found"));
-        
-        System.out.println("🔄 Resetting password for user: " + user.getUsername());
-        
-        String encodedPassword = passwordEncoder.encode(newPassword);
-        user.setPassword(encodedPassword);
-        userRepository.save(user);
-
-        resetToken.setUsed(true);
-        passwordResetTokenRepository.save(resetToken);
-        
-        System.out.println("✅ Password reset successfully. New hash: " + encodedPassword);
+        userService.resetPassword(token, newPassword);
 
         return ResponseEntity.ok(Map.of("message", "Password reset successful"));
     }

@@ -10,6 +10,8 @@ import com.notekeeper.notekeeper.repository.UserRepository;
 import com.notekeeper.notekeeper.repository.UserProfileRepository;
 import com.notekeeper.notekeeper.repository.WorkspaceRepository;
 import com.notekeeper.notekeeper.repository.LocationRepository;
+import com.notekeeper.notekeeper.repository.PasswordResetTokenRepository;
+import com.notekeeper.notekeeper.model.PasswordResetToken;
 import com.notekeeper.notekeeper.dto.UserDTO;
 import com.notekeeper.notekeeper.dto.UserProfileDTO;
 import com.notekeeper.notekeeper.mapper.DTOMapper;
@@ -42,6 +44,9 @@ public class UserService {
 
     @Autowired
     private LocationRepository locationRepository;
+    
+    @Autowired
+    private PasswordResetTokenRepository passwordResetTokenRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -278,6 +283,40 @@ public class UserService {
 
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+    }
+
+    @Transactional
+    public void resetPassword(String token, String newPassword) {
+        if (token == null || newPassword == null || newPassword.trim().isEmpty()) {
+            throw new BadRequestException("Token and new password are required");
+        }
+
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token)
+                .orElseThrow(() -> new BadRequestException("Invalid or expired reset token"));
+
+        if (resetToken.isExpired() || resetToken.isUsed()) {
+            throw new BadRequestException("Invalid or expired reset token");
+        }
+
+        User user = resetToken.getUser();
+        System.out.println("🔄 Service: Resetting password for user: " + user.getUsername() + " (ID: " + user.getId() + ")");
+        
+        // Encode and update password
+        String encodedPassword = passwordEncoder.encode(newPassword.trim());
+        user.setPassword(encodedPassword);
+        
+        // Explicit save and flush to ensure it hits the DB
+        userRepository.saveAndFlush(user);
+
+        // Mark token as used
+        resetToken.setUsed(true);
+        passwordResetTokenRepository.saveAndFlush(resetToken);
+        
+        System.out.println("✅ Service: Password reset successfully. New hash snippet: " + encodedPassword.substring(0, 10) + "...");
+        
+        // Double check validation immediately after save in the same transaction
+        boolean matches = passwordEncoder.matches(newPassword.trim(), user.getPassword());
+        System.out.println("🧪 Service Verification: Does password match immediately? " + matches);
     }
     // SORTING
     public List<User> getUsersSorted(String sortBy, String direction) {
