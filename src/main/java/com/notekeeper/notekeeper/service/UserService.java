@@ -3,6 +3,9 @@ package com.notekeeper.notekeeper.service;
 import com.notekeeper.notekeeper.model.User;
 import com.notekeeper.notekeeper.model.UserProfile;
 import com.notekeeper.notekeeper.model.Workspace;
+import com.notekeeper.notekeeper.model.WorkspaceMember;
+import com.notekeeper.notekeeper.model.WorkspaceRole;
+import com.notekeeper.notekeeper.repository.WorkspaceMemberRepository;
 import com.notekeeper.notekeeper.repository.UserRepository;
 import com.notekeeper.notekeeper.repository.UserProfileRepository;
 import com.notekeeper.notekeeper.repository.WorkspaceRepository;
@@ -33,6 +36,9 @@ public class UserService {
 
     @Autowired
     private WorkspaceRepository workspaceRepository;
+
+    @Autowired
+    private WorkspaceMemberRepository workspaceMemberRepository;
 
     @Autowired
     private LocationRepository locationRepository;
@@ -103,6 +109,10 @@ public class UserService {
         inbox.setDescription("Quick capture notes");
         inbox.setIcon("📥");
         workspaceRepository.save(inbox);
+
+        // Add owner as a member
+        WorkspaceMember member = new WorkspaceMember(inbox, savedUser, WorkspaceRole.OWNER);
+        workspaceMemberRepository.save(member);
 
         return savedUser;
     }

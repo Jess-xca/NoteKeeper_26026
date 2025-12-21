@@ -34,6 +34,18 @@ public class PageService {
     // CREATE
     @Transactional
     public String createPage(Page page) {
+        // Ensure user and workspace are managed entities
+        if (page.getUser() != null && page.getUser().getId() != null) {
+            User user = userRepository.findById(page.getUser().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found: " + page.getUser().getId()));
+            page.setUser(user);
+        }
+        if (page.getWorkspace() != null && page.getWorkspace().getId() != null) {
+            Workspace workspace = workspaceRepository.findById(page.getWorkspace().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Workspace not found: " + page.getWorkspace().getId()));
+            page.setWorkspace(workspace);
+        }
+
         // Handle tags during creation if present
         if (page.getPageTags() != null && !page.getPageTags().isEmpty()) {
             List<com.notekeeper.notekeeper.model.PageTag> incomingTags = new java.util.ArrayList<>(page.getPageTags());
