@@ -11,8 +11,16 @@ import org.springframework.context.annotation.Configuration;
 public class DataInitializer {
 
     @Bean
-    public CommandLineRunner initData(UserService userService, UserRepository userRepository) {
+    public CommandLineRunner initData(UserService userService, UserRepository userRepository, org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         return args -> {
+            // Drop stale constraint if it exists to allow new NotificationType values
+            try {
+                jdbcTemplate.execute("ALTER TABLE notifications DROP CONSTRAINT IF EXISTS notifications_type_check");
+                System.out.println("✅ Dropped stale notifications_type_check constraint");
+            } catch (Exception e) {
+                System.out.println("⚠️ Could not drop constraint (might not exist): " + e.getMessage());
+            }
+
             // Seed Admin
             if (!userRepository.existsByEmail("jessica.irakoze@gmail.com")) {
                 User admin = new User();

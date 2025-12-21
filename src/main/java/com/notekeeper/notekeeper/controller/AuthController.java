@@ -70,6 +70,7 @@ public class AuthController {
     private String googleClientSecret;
 
     @PostMapping("/login")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
         // Validate input
         if (loginRequest.getUsername() == null || loginRequest.getUsername().trim().isEmpty()) {
@@ -80,17 +81,27 @@ public class AuthController {
             throw new BadRequestException("Password is required");
         }
 
-        // Find user by username
+        // Find user by username or email
         User user = userRepository.findByUsername(loginRequest.getUsername())
+                .or(() -> userRepository.findByEmail(loginRequest.getUsername()))
                 .orElseThrow(() -> new BadRequestException("Invalid username or password"));
 
         // Verify hashed password
         if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+            System.out.println("❌ Login failed for user: " + user.getUsername());
+            System.out.println("   Input password: " + loginRequest.getPassword());
+            System.out.println("   Stored hash: " + user.getPassword());
+            System.out.println("   Matches? " + passwordEncoder.matches(loginRequest.getPassword(), user.getPassword()));
             throw new BadRequestException("Invalid username or password");
         }
 
-        // Check if 2FA is enabled
-        boolean requiresTwoFactor = user.getTwoFactorEnabled() != null && user.getTwoFactorEnabled();
+        // Check if 2FA is enabled - AND FORCE IT TO TRUE per user requirement
+        if (user.getTwoFactorEnabled() == null || !user.getTwoFactorEnabled()) {
+            System.out.println("⚠️ 2FA forced ENABLED for user: " + user.getUsername());
+            user.setTwoFactorEnabled(true);
+            userRepository.save(user);
+        }
+        boolean requiresTwoFactor = true; // Always require it now
 
         if (requiresTwoFactor) {
             // Delete old codes for this user
@@ -448,6 +459,7 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<Map<String, String>> forgotPassword(@RequestBody Map<String, String> request) {
         String email = request.get("email");
         if (email == null || email.trim().isEmpty()) {
@@ -494,6 +506,7 @@ public class AuthController {
     }
 
     @PostMapping("/reset-password")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<Map<String, String>> resetPassword(@RequestBody Map<String, String> request) {
         String token = request.get("token");
         String newPassword = request.get("newPassword");
@@ -509,12 +522,20 @@ public class AuthController {
             throw new com.notekeeper.notekeeper.exception.BadRequestException("Invalid or expired reset token");
         }
 
-        User user = resetToken.getUser();
-        user.setPassword(passwordEncoder.encode(newPassword));
+        // Fetch user explicitly to ensure we are updating the actual record in the DB
+        User user = userRepository.findById(resetToken.getUser().getId())
+                .orElseThrow(() -> new com.notekeeper.notekeeper.exception.ResourceNotFoundException("User not found"));
+        
+        System.out.println("🔄 Resetting password for user: " + user.getUsername());
+        
+        String encodedPassword = passwordEncoder.encode(newPassword);
+        user.setPassword(encodedPassword);
         userRepository.save(user);
 
         resetToken.setUsed(true);
         passwordResetTokenRepository.save(resetToken);
+        
+        System.out.println("✅ Password reset successfully. New hash: " + encodedPassword);
 
         return ResponseEntity.ok(Map.of("message", "Password reset successful"));
     }
