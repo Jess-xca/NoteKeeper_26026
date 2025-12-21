@@ -49,11 +49,13 @@ public class WorkspaceMemberService {
         Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
 
+        // First try to find by ID, then by email
         User user = userRepository.findById(userId)
                 .orElseGet(() -> userRepository.findByEmail(userId)
                         .orElseThrow(() -> new ResourceNotFoundException("User not found with ID or Email: " + userId)));
 
-        if (workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)) {
+        // Use the resolved user's ID for the membership check
+        if (workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, user.getId())) {
             throw new BadRequestException("User is already a member of this workspace");
         }
 
@@ -61,9 +63,9 @@ public class WorkspaceMemberService {
                 WorkspaceRole.valueOf(role.toUpperCase()));
         workspaceMemberRepository.save(member);
 
-        // CREATE NOTIFICATION
+        // CREATE NOTIFICATION - use resolved user ID
         notificationService.createNotification(
-                userId,
+                user.getId(),
                 "Added to Workspace",
                 "You have been added to the workspace: " + workspace.getName(),
                 com.notekeeper.notekeeper.model.NotificationType.SHARE
@@ -77,6 +79,7 @@ public class WorkspaceMemberService {
                 "Workspace"
         );
     }
+
 
     @Transactional
     public void removeMember(String workspaceId, String userId) {
