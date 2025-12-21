@@ -473,6 +473,26 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "If an account exists with this email, a reset link has been sent"));
     }
 
+    @GetMapping("/verify-reset-token")
+    public ResponseEntity<Map<String, Boolean>> verifyResetToken(@RequestParam String token) {
+        if (token == null || token.trim().isEmpty()) {
+            throw new com.notekeeper.notekeeper.exception.BadRequestException("Token is required");
+        }
+
+        Optional<PasswordResetToken> resetTokenOpt = passwordResetTokenRepository.findByToken(token);
+        
+        if (resetTokenOpt.isEmpty()) {
+            return ResponseEntity.ok(Map.of("valid", false));
+        }
+
+        PasswordResetToken resetToken = resetTokenOpt.get();
+        if (resetToken.isExpired() || resetToken.isUsed()) {
+            return ResponseEntity.ok(Map.of("valid", false));
+        }
+
+        return ResponseEntity.ok(Map.of("valid", true));
+    }
+
     @PostMapping("/reset-password")
     public ResponseEntity<Map<String, String>> resetPassword(@RequestBody Map<String, String> request) {
         String token = request.get("token");

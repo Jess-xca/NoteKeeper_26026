@@ -3,13 +3,17 @@ package com.notekeeper.notekeeper.service;
 import com.notekeeper.notekeeper.exception.UnauthorizedException;
 import com.notekeeper.notekeeper.model.Page;
 import com.notekeeper.notekeeper.model.PageShare;
+import com.notekeeper.notekeeper.model.Workspace;
 import com.notekeeper.notekeeper.model.WorkspaceMember;
 import com.notekeeper.notekeeper.model.WorkspaceRole;
 import com.notekeeper.notekeeper.repository.PageRepository;
 import com.notekeeper.notekeeper.repository.PageShareRepository;
 import com.notekeeper.notekeeper.repository.WorkspaceMemberRepository;
+import com.notekeeper.notekeeper.repository.WorkspaceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 @Service
 public class PermissionService {
@@ -22,6 +26,9 @@ public class PermissionService {
 
     @Autowired
     private WorkspaceMemberRepository workspaceMemberRepository;
+
+    @Autowired
+    private WorkspaceRepository workspaceRepository;
 
     /**
      * Validates if a user has permission to access or modify a page.
@@ -67,8 +74,16 @@ public class PermissionService {
 
     /**
      * Validates if a user can manage a workspace.
+     * Allows workspace owner (from Workspace entity) or members with required role.
      */
     public void validateWorkspaceAccess(String workspaceId, String userId, WorkspaceRole requiredRole) {
+        // First check if user is the workspace owner
+        Optional<Workspace> workspaceOpt = workspaceRepository.findById(workspaceId);
+        if (workspaceOpt.isPresent() && workspaceOpt.get().getOwner().getId().equals(userId)) {
+            return; // Workspace owner has full access
+        }
+
+        // Then check membership
         WorkspaceMember member = workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, userId)
                 .orElseThrow(() -> new UnauthorizedException("You are not a member of this workspace"));
 
@@ -90,3 +105,4 @@ public class PermissionService {
         }
     }
 }
+

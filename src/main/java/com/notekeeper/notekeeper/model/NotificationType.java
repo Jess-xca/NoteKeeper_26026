@@ -5,5 +5,6 @@ public enum NotificationType {
     SUCCESS,
     WARNING,
     ERROR,
-    SHARE
+    SHARE,
+    WORKSPACE_INVITE
 }

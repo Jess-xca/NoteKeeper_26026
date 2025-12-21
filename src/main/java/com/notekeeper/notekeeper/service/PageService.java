@@ -72,7 +72,7 @@ public class PageService {
     }
 
     public List<Page> getPagesByUser(String userId) {
-        return pageRepository.findByUserId(userId);
+        return pageRepository.findByUserIdAndIsArchivedFalse(userId);
     }
 
     public List<Page> getPagesByWorkspace(String workspaceId) {
@@ -195,7 +195,7 @@ public class PageService {
     }
 
     public org.springframework.data.domain.Page<Page> getUserPagesPaginated(String userId, int page, int size) {
-        return pageRepository.findByUserId(userId, PageRequest.of(page, size));
+        return pageRepository.findByUserIdAndIsArchivedFalse(userId, PageRequest.of(page, size));
     }
 
     // STATISTICS

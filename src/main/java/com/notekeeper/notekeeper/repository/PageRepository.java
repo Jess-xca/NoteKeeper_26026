@@ -17,6 +17,8 @@ public interface PageRepository extends JpaRepository<Page, String> {
         // findBy queries
         List<Page> findByUserId(String userId);
 
+        List<Page> findByUserIdAndIsArchivedFalse(String userId);
+
         List<Page> findByWorkspaceId(String workspaceId);
 
         List<Page> findByUserIdAndIsFavoriteTrue(String userId);
@@ -42,22 +44,24 @@ public interface PageRepository extends JpaRepository<Page, String> {
 
         org.springframework.data.domain.Page<Page> findByUserId(String userId, Pageable pageable);
 
+        org.springframework.data.domain.Page<Page> findByUserIdAndIsArchivedFalse(String userId, Pageable pageable);
+
         org.springframework.data.domain.Page<Page> findByWorkspaceId(String workspaceId, Pageable pageable);
 
         // Custom queries
-        @Query("SELECT p FROM Page p WHERE LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-                        "OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+        @Query("SELECT p FROM Page p WHERE (LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+                        "OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND p.isArchived = false")
         List<Page> searchPages(@Param("keyword") String keyword);
 
         @Query("SELECT p FROM Page p WHERE p.user.id = :userId AND " +
                         "(LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-                        "OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+                        "OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND p.isArchived = false")
         List<Page> searchUserPages(@Param("userId") String userId, @Param("keyword") String keyword);
 
-        @Query("SELECT p FROM Page p WHERE p.workspace.isDefault = true AND p.user.id = :userId")
+        @Query("SELECT p FROM Page p WHERE p.workspace.isDefault = true AND p.user.id = :userId AND p.isArchived = false")
         List<Page> findInboxPages(@Param("userId") String userId);
 
-        @Query("SELECT DISTINCT p FROM Page p JOIN p.pageTags pt WHERE pt.tag.id = :tagId")
+        @Query("SELECT DISTINCT p FROM Page p JOIN p.pageTags pt WHERE pt.tag.id = :tagId AND p.isArchived = false")
         List<Page> findPagesByTagId(@Param("tagId") String tagId);
 
         // Count queries

@@ -37,6 +37,12 @@ public class Notification {
     @Column
     private String actionUrl; // Link to related resource
 
+    @Column(columnDefinition = "TEXT")
+    private String metadata; // JSON for storing invitation data (workspaceId, role, inviterId)
+
+    @Column(length = 20)
+    private String status; // PENDING, ACCEPTED, DECLINED for invitations
+
     public Notification() {
     }
 
@@ -108,5 +114,21 @@ public class Notification {
 
     public void setActionUrl(String actionUrl) {
         this.actionUrl = actionUrl;
+    }
+
+    public String getMetadata() {
+        return metadata;
+    }
+
+    public void setMetadata(String metadata) {
+        this.metadata = metadata;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }
