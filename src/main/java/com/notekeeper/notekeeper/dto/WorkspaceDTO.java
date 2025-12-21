@@ -81,4 +81,12 @@ public class WorkspaceDTO {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
+    public Integer getPageCount() {
+        return pageCount;
+    }
+
+    public void setPageCount(Integer pageCount) {
+        this.pageCount = pageCount;
+    }
 }

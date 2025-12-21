@@ -115,15 +115,16 @@ public class DTOMapper {
         if (workspace == null)
             return null;
 
-        return new WorkspaceDTO(
-                workspace.getId(),
-                workspace.getName(),
-                workspace.getDescription(),
-                workspace.getIcon(),
-                toUserSummaryDTO(workspace.getOwner()),
-                workspace.getIsDefault(),
-                workspace.getCreatedAt(),
-                workspace.getPages() != null ? workspace.getPages().size() : 0);
+        WorkspaceDTO dto = new WorkspaceDTO();
+        dto.setId(workspace.getId());
+        dto.setName(workspace.getName());
+        dto.setDescription(workspace.getDescription());
+        dto.setIcon(workspace.getIcon());
+        dto.setOwner(toUserSummaryDTO(workspace.getOwner()));
+        dto.setIsDefault(workspace.getIsDefault());
+        dto.setCreatedAt(workspace.getCreatedAt());
+        dto.setPageCount(workspace.getPages() != null ? workspace.getPages().size() : 0);
+        return dto;
     }
 
     public WorkspaceSummaryDTO toWorkspaceSummaryDTO(Workspace workspace) {

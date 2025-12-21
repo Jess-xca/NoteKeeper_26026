@@ -3,13 +3,11 @@ package com.notekeeper.notekeeper.service;
 import com.notekeeper.notekeeper.exception.UnauthorizedException;
 import com.notekeeper.notekeeper.model.Page;
 import com.notekeeper.notekeeper.model.PageShare;
-import com.notekeeper.notekeeper.model.Workspace;
 import com.notekeeper.notekeeper.model.WorkspaceMember;
 import com.notekeeper.notekeeper.model.WorkspaceRole;
 import com.notekeeper.notekeeper.repository.PageRepository;
 import com.notekeeper.notekeeper.repository.PageShareRepository;
 import com.notekeeper.notekeeper.repository.WorkspaceMemberRepository;
-import com.notekeeper.notekeeper.repository.WorkspaceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -23,15 +21,13 @@ public class PermissionService {
     private PageShareRepository pageShareRepository;
 
     @Autowired
-    private WorkspaceRepository workspaceRepository;
-
-    @Autowired
     private WorkspaceMemberRepository workspaceMemberRepository;
 
     /**
      * Validates if a user has permission to access or modify a page.
-     * @param pageId The page ID
-     * @param userId The user ID
+     * 
+     * @param pageId             The page ID
+     * @param userId             The user ID
      * @param requiredPermission "READ" or "EDIT"
      */
     public void validatePageAccess(String pageId, String userId, String requiredPermission) {
@@ -46,20 +42,27 @@ public class PermissionService {
         // 2. Check direct page shares
         PageShare share = pageShareRepository.findByPageIdAndSharedWithId(pageId, userId).orElse(null);
         if (share != null) {
-            if ("READ".equals(requiredPermission)) return;
-            if ("EDIT".equals(requiredPermission) && "EDIT".equals(share.getPermission())) return;
+            if ("READ".equals(requiredPermission))
+                return;
+            if ("EDIT".equals(requiredPermission) && "EDIT".equals(share.getPermission()))
+                return;
         }
 
         // 3. Check workspace membership
         if (page.getWorkspace() != null) {
-            WorkspaceMember member = workspaceMemberRepository.findByWorkspaceIdAndUserId(page.getWorkspace().getId(), userId).orElse(null);
+            WorkspaceMember member = workspaceMemberRepository
+                    .findByWorkspaceIdAndUserId(page.getWorkspace().getId(), userId).orElse(null);
             if (member != null) {
-                if ("READ".equals(requiredPermission)) return;
-                if ("EDIT".equals(requiredPermission) && (member.getRole() == WorkspaceRole.OWNER || member.getRole() == WorkspaceRole.EDITOR)) return;
+                if ("READ".equals(requiredPermission))
+                    return;
+                if ("EDIT".equals(requiredPermission)
+                        && (member.getRole() == WorkspaceRole.OWNER || member.getRole() == WorkspaceRole.EDITOR))
+                    return;
             }
         }
 
-        throw new UnauthorizedException("You do not have permission to " + requiredPermission.toLowerCase() + " this page");
+        throw new UnauthorizedException(
+                "You do not have permission to " + requiredPermission.toLowerCase() + " this page");
     }
 
     /**
@@ -76,10 +79,14 @@ public class PermissionService {
 
     private int getRoleLevel(WorkspaceRole role) {
         switch (role) {
-            case OWNER: return 3;
-            case EDITOR: return 2;
-            case VIEWER: return 1;
-            default: return 0;
+            case OWNER:
+                return 3;
+            case EDITOR:
+                return 2;
+            case VIEWER:
+                return 1;
+            default:
+                return 0;
         }
     }
 }
