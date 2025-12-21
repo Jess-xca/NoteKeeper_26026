@@ -35,12 +35,12 @@ public class DataInitializer {
 
             // Alain Editor
             seedUser(userRepository, userService, locationRepository,
-                    "Alain", "Muvunyi", "jessicairakoze4@gmail.com", "alain_editor",
+                    "Alain", "Muvunyi", "bigjess000@gmail.com", "alain_editor",
                     "Editor123!", "EDITOR", "MALE", "+250788000002", LocalDate.of(1996, 8, 20));
 
             // Divine User
             seedUser(userRepository, userService, locationRepository,
-                    "Divine", "Umutoni", "jessicairakoze4@gmail.com", "divine_user",
+                    "Divine", "Umutoni", "jessicairakoze04@gmail.com", "divine_user",
                     "User123!", "USER", "FEMALE", "+250788000003", LocalDate.of(1997, 12, 15));
         };
     }
