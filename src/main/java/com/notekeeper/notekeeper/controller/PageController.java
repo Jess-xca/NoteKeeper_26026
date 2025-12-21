@@ -323,4 +323,28 @@ public class PageController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    // Get daily activity for chart (last 7 days)
+    @GetMapping("/activity/{userId}")
+    public ResponseEntity<List<Map<String, Object>>> getActivity(@PathVariable String userId) {
+        try {
+            LocalDateTime now = LocalDateTime.now();
+            List<Map<String, Object>> activityData = new java.util.ArrayList<>();
+            
+            for (int i = 6; i >= 0; i--) {
+                LocalDateTime startOfDay = now.minusDays(i).truncatedTo(ChronoUnit.DAYS);
+                LocalDateTime endOfDay = startOfDay.plusDays(1);
+                long count = pageRepository.countByUserIdAndCreatedAtBetween(userId, startOfDay, endOfDay);
+                
+                Map<String, Object> dayData = new HashMap<>();
+                dayData.put("date", startOfDay.toLocalDate().toString());
+                dayData.put("count", count);
+                activityData.add(dayData);
+            }
+            
+            return ResponseEntity.ok(activityData);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 }
