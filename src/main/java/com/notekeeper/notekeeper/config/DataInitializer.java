@@ -50,17 +50,11 @@ public class DataInitializer {
             String first, String last, String email, String username,
             String pass, String role, String gender, String phone, LocalDate dob) {
 
-        // Delete existing user with this username/email if requested cleanup
-        userRepository.findByUsername(username).ifPresent(u -> {
-            System.out.println("♻️ Cleaning up old user: " + username);
-            userRepository.delete(u);
-        });
-        userRepository.findByEmail(email).ifPresent(u -> {
-            if (!u.getUsername().equals(username)) {
-                System.out.println("♻️ Cleaning up old user email: " + email);
-                userRepository.delete(u);
-            }
-        });
+        // Check if user already exists
+        if (userRepository.existsByUsername(username) || userRepository.existsByEmail(email)) {
+            System.out.println("ℹ️ User already seeded: " + username);
+            return;
+        }
 
         User user = new User();
         user.setFirstName(first);
