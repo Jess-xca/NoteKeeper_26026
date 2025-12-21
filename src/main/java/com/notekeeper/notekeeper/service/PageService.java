@@ -34,6 +34,16 @@ public class PageService {
     // CREATE
     @Transactional
     public String createPage(Page page) {
+        // Handle tags during creation if present
+        if (page.getPageTags() != null && !page.getPageTags().isEmpty()) {
+            List<com.notekeeper.notekeeper.model.PageTag> incomingTags = new java.util.ArrayList<>(page.getPageTags());
+            page.getPageTags().clear();
+            for (com.notekeeper.notekeeper.model.PageTag pt : incomingTags) {
+                com.notekeeper.notekeeper.model.Tag tag = tagRepository.findById(pt.getTag().getId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Tag not found: " + pt.getTag().getId()));
+                page.getPageTags().add(new com.notekeeper.notekeeper.model.PageTag(page, tag));
+            }
+        }
         Page saved = pageRepository.save(page);
         return saved.getId();
     }
@@ -102,26 +112,30 @@ public class PageService {
 
         // Sync tags if they are provided in pageDetails
         if (pageDetails.getPageTags() != null) {
-            // Remove existing tags that are not in the new list
-            page.getPageTags().removeIf(existingPt -> pageDetails.getPageTags().stream()
-                    .noneMatch(newPt -> newPt.getTag().getId().equals(existingPt.getTag().getId())));
-
-            // Add new tags that are not already present
-            for (com.notekeeper.notekeeper.model.PageTag newPt : pageDetails.getPageTags()) {
-                boolean exists = page.getPageTags().stream()
-                        .anyMatch(existingPt -> existingPt.getTag().getId().equals(newPt.getTag().getId()));
-
-                if (!exists) {
-                    com.notekeeper.notekeeper.model.Tag tag = tagRepository.findById(newPt.getTag().getId())
-                            .orElseThrow(
-                                    () -> new ResourceNotFoundException("Tag not found: " + newPt.getTag().getId()));
-                    com.notekeeper.notekeeper.model.PageTag pt = new com.notekeeper.notekeeper.model.PageTag(page, tag);
-                    page.getPageTags().add(pt);
-                }
-            }
+            syncTags(page, pageDetails.getPageTags());
         }
 
         pageRepository.save(page);
+    }
+
+    private void syncTags(Page page, List<com.notekeeper.notekeeper.model.PageTag> newPageTags) {
+        // Remove existing tags that are not in the new list
+        page.getPageTags().removeIf(existingPt -> newPageTags.stream()
+                .noneMatch(newPt -> newPt.getTag().getId().equals(existingPt.getTag().getId())));
+
+        // Add new tags that are not already present
+        for (com.notekeeper.notekeeper.model.PageTag newPt : newPageTags) {
+            boolean exists = page.getPageTags().stream()
+                    .anyMatch(existingPt -> existingPt.getTag().getId().equals(newPt.getTag().getId()));
+
+            if (!exists) {
+                com.notekeeper.notekeeper.model.Tag tag = tagRepository.findById(newPt.getTag().getId())
+                        .orElseThrow(
+                                () -> new ResourceNotFoundException("Tag not found: " + newPt.getTag().getId()));
+                com.notekeeper.notekeeper.model.PageTag pt = new com.notekeeper.notekeeper.model.PageTag(page, tag);
+                page.getPageTags().add(pt);
+            }
+        }
     }
 
     @Transactional

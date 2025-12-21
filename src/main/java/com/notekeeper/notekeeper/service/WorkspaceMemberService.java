@@ -37,6 +37,9 @@ public class WorkspaceMemberService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private EmailService emailService;
+
     @Transactional
     public void addMember(String workspaceId, String userId, String role) {
         if (!WorkspaceRole.isValid(role)) {
@@ -63,6 +66,14 @@ public class WorkspaceMemberService {
                 "Added to Workspace",
                 "You have been added to the workspace: " + workspace.getName(),
                 com.notekeeper.notekeeper.model.NotificationType.SHARE
+        );
+
+        // SEND EMAIL
+        emailService.sendShareNotification(
+                user.getEmail(),
+                workspace.getOwner().getFullName(),
+                workspace.getName(),
+                "Workspace"
         );
     }
 

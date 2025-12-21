@@ -10,6 +10,7 @@ public class WorkspaceDTO {
     private UserSummaryDTO owner;
     private Boolean isDefault;
     private LocalDateTime createdAt;
+    private Integer pageCount;
 
     public WorkspaceDTO() {
     }

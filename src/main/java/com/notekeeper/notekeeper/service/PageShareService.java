@@ -27,6 +27,9 @@ public class PageShareService {
     private UserRepository userRepository;
 
     @Autowired
+    private EmailService emailService;
+
+    @Autowired
     private NotificationService notificationService;
 
     @Transactional
@@ -62,6 +65,14 @@ public class PageShareService {
                 "New Page Shared",
                 sharedBy.getFullName() + " shared a page with you: " + page.getTitle(),
                 com.notekeeper.notekeeper.model.NotificationType.SHARE
+        );
+
+        // SEND EMAIL
+        emailService.sendShareNotification(
+                sharedWith.getEmail(),
+                sharedBy.getFullName(),
+                page.getTitle(),
+                "Page"
         );
 
         return savedShare;

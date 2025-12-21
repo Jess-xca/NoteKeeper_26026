@@ -15,7 +15,32 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
+    @org.springframework.scheduling.annotation.Async
+    public void sendEmail(String to, String subject, String body) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(to);
+            message.setSubject(subject);
+            message.setText(body);
+            mailSender.send(message);
+        } catch (Exception e) {
+            System.err.println("Failed to send email to " + to + ": " + e.getMessage());
+        }
+    }
+
+    public void sendShareNotification(String toEmail, String shareByName, String contentName, String type) {
+        String subject = "Notekeeper: New " + type + " shared with you";
+        String body = String.format(
+            "Hello,\n\n%s has shared a %s with you: \"%s\".\n\nLogin to Notekeeper to view it.\n\nBest regards,\nThe Notekeeper Team",
+            shareByName, type.toLowerCase(), contentName
+        );
+        sendEmail(toEmail, subject, body);
+    }
+
+    @org.springframework.scheduling.annotation.Async
     public void sendPasswordResetEmail(String toEmail, String resetToken) {
+        // ... (existing implementation)
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);

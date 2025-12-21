@@ -90,23 +90,7 @@ public class DTOMapper {
         dto.setCreatedAt(location.getCreatedAt());
 
         if (location.getParent() != null) {
-            LocationDTO parentDTO = new LocationDTO();
-            parentDTO.setId(location.getParent().getId());
-            parentDTO.setName(location.getParent().getName());
-            parentDTO.setCode(location.getParent().getCode());
-            parentDTO.setType(location.getParent().getType());
-            parentDTO.setCreatedAt(location.getParent().getCreatedAt());
-            if (location.getParent().getParent() != null) {
-                Location parentParent = location.getParent().getParent();
-                LocationDTO grandParent = new LocationDTO();
-                grandParent.setId(parentParent.getId());
-                grandParent.setName(parentParent.getName());
-                grandParent.setCode(parentParent.getCode());
-                grandParent.setType(parentParent.getType());
-                grandParent.setCreatedAt(parentParent.getCreatedAt());
-                parentDTO.setParent(grandParent);
-            }
-            dto.setParent(parentDTO);
+            dto.setParent(toLocationDTO(location.getParent()));
         }
 
         return dto;
@@ -138,7 +122,8 @@ public class DTOMapper {
                 workspace.getIcon(),
                 toUserSummaryDTO(workspace.getOwner()),
                 workspace.getIsDefault(),
-                workspace.getCreatedAt());
+                workspace.getCreatedAt(),
+                workspace.getPages() != null ? workspace.getPages().size() : 0);
     }
 
     public WorkspaceSummaryDTO toWorkspaceSummaryDTO(Workspace workspace) {
