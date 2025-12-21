@@ -95,13 +95,12 @@ public class AuthController {
             throw new BadRequestException("Invalid username or password");
         }
 
-        // Check if 2FA is enabled - AND FORCE IT TO TRUE per user requirement
+        // Check if 2FA is enabled - MANDATORY for all users
         if (user.getTwoFactorEnabled() == null || !user.getTwoFactorEnabled()) {
-            System.out.println("⚠️ 2FA forced ENABLED for user: " + user.getUsername());
             user.setTwoFactorEnabled(true);
             userRepository.save(user);
         }
-        boolean requiresTwoFactor = true; // Always require it now
+        boolean requiresTwoFactor = true; 
 
         if (requiresTwoFactor) {
             // Delete old codes for this user

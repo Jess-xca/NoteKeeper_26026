@@ -1,17 +1,25 @@
 package com.notekeeper.notekeeper.config;
 
+import com.notekeeper.notekeeper.model.Location;
+import com.notekeeper.notekeeper.model.LocationType;
 import com.notekeeper.notekeeper.model.User;
+import com.notekeeper.notekeeper.repository.LocationRepository;
 import com.notekeeper.notekeeper.repository.UserRepository;
 import com.notekeeper.notekeeper.service.UserService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.LocalDate;
+import java.util.Optional;
+
 @Configuration
 public class DataInitializer {
 
     @Bean
-    public CommandLineRunner initData(UserService userService, UserRepository userRepository, org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+    public CommandLineRunner initData(UserService userService, UserRepository userRepository, 
+                                     LocationRepository locationRepository, 
+                                     org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         return args -> {
             // Drop stale constraint if it exists to allow new NotificationType values
             try {
@@ -21,44 +29,60 @@ public class DataInitializer {
                 System.out.println("⚠️ Could not drop constraint (might not exist): " + e.getMessage());
             }
 
-            // Seed Admin
-            if (!userRepository.existsByEmail("jessica.irakoze@gmail.com")) {
-                User admin = new User();
-                admin.setFirstName("Jessica");
-                admin.setLastName("Irakoze");
-                admin.setEmail("jessica.irakoze@gmail.com");
-                admin.setUsername("jessica_admin");
-                admin.setPassword("Admin123!");
-                admin.setRole("ADMIN");
-                userService.createUser(admin);
-                System.out.println("✅ Seeded Admin: Jessica Irakoze");
-            }
+            // --- SEED SELECTION ---
+            // Jessica Admin
+            seedUser(userRepository, userService, locationRepository, 
+                    "Jessica", "Irakoze", "jessicairakoze4@gmail.com", "jessica_admin", 
+                    "Admin123!", "ADMIN", "FEMALE", "+250788000001", LocalDate.of(1995, 5, 10));
 
-            // Seed Editor
-            if (!userRepository.existsByEmail("alain.muvunyi@gmail.com")) {
-                User editor = new User();
-                editor.setFirstName("Alain");
-                editor.setLastName("Muvunyi");
-                editor.setEmail("alain.muvunyi@gmail.com");
-                editor.setUsername("alain_editor");
-                editor.setPassword("Editor123!");
-                editor.setRole("EDITOR");
-                userService.createUser(editor);
-                System.out.println("✅ Seeded Editor: Alain Muvunyi");
-            }
+            // Alain Editor
+            seedUser(userRepository, userService, locationRepository, 
+                    "Alain", "Muvunyi", "alain.editor@example.com", "alain_editor", 
+                    "Editor123!", "EDITOR", "MALE", "+250788000002", LocalDate.of(1996, 8, 20));
 
-            // Seed User
-            if (!userRepository.existsByEmail("divine.umutoni@gmail.com")) {
-                User user = new User();
-                user.setFirstName("Divine");
-                user.setLastName("Umutoni");
-                user.setEmail("divine.umutoni@gmail.com");
-                user.setUsername("divine_user");
-                user.setPassword("User123!");
-                user.setRole("USER");
-                userService.createUser(user);
-                System.out.println("✅ Seeded User: Divine Umutoni");
-            }
+            // Divine User
+            seedUser(userRepository, userService, locationRepository, 
+                    "Divine", "Umutoni", "divine.user@example.com", "divine_user", 
+                    "User123!", "USER", "FEMALE", "+250788000003", LocalDate.of(1997, 12, 15));
         };
+    }
+
+    private void seedUser(UserRepository userRepository, UserService userService, 
+                          LocationRepository locationRepository,
+                          String first, String last, String email, String username, 
+                          String pass, String role, String gender, String phone, LocalDate dob) {
+        
+        // Delete existing user with this username/email if requested cleanup
+        userRepository.findByUsername(username).ifPresent(u -> {
+            System.out.println("♻️ Cleaning up old user: " + username);
+            userRepository.delete(u);
+        });
+        userRepository.findByEmail(email).ifPresent(u -> {
+            if (!u.getUsername().equals(username)) {
+                System.out.println("♻️ Cleaning up old user email: " + email);
+                userRepository.delete(u);
+            }
+        });
+
+        User user = new User();
+        user.setFirstName(first);
+        user.setLastName(last);
+        user.setEmail(email);
+        user.setUsername(username);
+        user.setPassword(pass);
+        user.setRole(role);
+        user.setGender(gender);
+        user.setPhoneNumber(phone);
+        user.setDateOfBirth(dob);
+        user.setTwoFactorEnabled(true); // Mandatory 2FA enabled as requested
+
+        // Assign a random Village location if possible
+        locationRepository.findAll().stream()
+                .filter(l -> l.getType() == LocationType.VILLAGE)
+                .findAny()
+                .ifPresent(user::setLocation);
+
+        userService.createUser(user);
+        System.out.println("✅ Seeded " + role + ": " + first + " " + last + " (" + username + ")");
     }
 }
