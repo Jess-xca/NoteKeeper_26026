@@ -1,6 +1,5 @@
 package com.notekeeper.notekeeper.config;
 
-import com.notekeeper.notekeeper.model.Location;
 import com.notekeeper.notekeeper.model.LocationType;
 import com.notekeeper.notekeeper.model.User;
 import com.notekeeper.notekeeper.repository.LocationRepository;
@@ -11,15 +10,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.LocalDate;
-import java.util.Optional;
 
 @Configuration
 public class DataInitializer {
 
     @Bean
-    public CommandLineRunner initData(UserService userService, UserRepository userRepository, 
-                                     LocationRepository locationRepository, 
-                                     org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+    public CommandLineRunner initData(UserService userService, UserRepository userRepository,
+            LocationRepository locationRepository,
+            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         return args -> {
             // Drop stale constraint if it exists to allow new NotificationType values
             try {
@@ -31,27 +29,27 @@ public class DataInitializer {
 
             // --- SEED SELECTION ---
             // Jessica Admin
-            seedUser(userRepository, userService, locationRepository, 
-                    "Jessica", "Irakoze", "jessicairakoze4@gmail.com", "jessica_admin", 
+            seedUser(userRepository, userService, locationRepository,
+                    "Jessica", "Irakoze", "jessicairakoze4@gmail.com", "jessica_admin",
                     "Admin123!", "ADMIN", "FEMALE", "+250788000001", LocalDate.of(1995, 5, 10));
 
             // Alain Editor
-            seedUser(userRepository, userService, locationRepository, 
-                    "Alain", "Muvunyi", "alain.editor@example.com", "alain_editor", 
+            seedUser(userRepository, userService, locationRepository,
+                    "Alain", "Muvunyi", "jessicairakoze4@gmail.com", "alain_editor",
                     "Editor123!", "EDITOR", "MALE", "+250788000002", LocalDate.of(1996, 8, 20));
 
             // Divine User
-            seedUser(userRepository, userService, locationRepository, 
-                    "Divine", "Umutoni", "divine.user@example.com", "divine_user", 
+            seedUser(userRepository, userService, locationRepository,
+                    "Divine", "Umutoni", "jessicairakoze4@gmail.com", "divine_user",
                     "User123!", "USER", "FEMALE", "+250788000003", LocalDate.of(1997, 12, 15));
         };
     }
 
-    private void seedUser(UserRepository userRepository, UserService userService, 
-                          LocationRepository locationRepository,
-                          String first, String last, String email, String username, 
-                          String pass, String role, String gender, String phone, LocalDate dob) {
-        
+    private void seedUser(UserRepository userRepository, UserService userService,
+            LocationRepository locationRepository,
+            String first, String last, String email, String username,
+            String pass, String role, String gender, String phone, LocalDate dob) {
+
         // Delete existing user with this username/email if requested cleanup
         userRepository.findByUsername(username).ifPresent(u -> {
             System.out.println("♻️ Cleaning up old user: " + username);
