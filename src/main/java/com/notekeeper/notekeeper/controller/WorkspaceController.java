@@ -25,6 +25,9 @@ public class WorkspaceController {
     @Autowired
     private DTOMapper dtoMapper;
 
+    @Autowired
+    private com.notekeeper.notekeeper.service.PermissionService permissionService;
+
     // CREATE
     @PostMapping
     public ResponseEntity<WorkspaceDTO> createWorkspace(@RequestBody Workspace workspace) {
@@ -35,7 +38,10 @@ public class WorkspaceController {
 
     // READ
     @GetMapping("/{id}")
-    public ResponseEntity<WorkspaceDTO> getWorkspaceById(@PathVariable String id) {
+    public ResponseEntity<WorkspaceDTO> getWorkspaceById(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @PathVariable String id) {
+        permissionService.validateWorkspaceAccess(id, principal.getId(), com.notekeeper.notekeeper.model.WorkspaceRole.VIEWER);
         Workspace workspace = workspaceService.getWorkspaceById(id);
         return ResponseEntity.ok(dtoMapper.toWorkspaceDTO(workspace));
     }
@@ -110,15 +116,20 @@ public class WorkspaceController {
 
     @PutMapping("/{id}")
     public ResponseEntity<WorkspaceDTO> updateWorkspace(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
             @PathVariable String id,
             @RequestBody Workspace workspaceDetails) {
+        permissionService.validateWorkspaceAccess(id, principal.getId(), com.notekeeper.notekeeper.model.WorkspaceRole.OWNER);
         workspaceService.updateWorkspace(id, workspaceDetails);
         Workspace updatedWorkspace = workspaceService.getWorkspaceById(id);
         return ResponseEntity.ok(dtoMapper.toWorkspaceDTO(updatedWorkspace));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, String>> deleteWorkspace(@PathVariable String id) {
+    public ResponseEntity<Map<String, String>> deleteWorkspace(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @PathVariable String id) {
+        permissionService.validateWorkspaceAccess(id, principal.getId(), com.notekeeper.notekeeper.model.WorkspaceRole.OWNER);
         workspaceService.deleteWorkspace(id);
         return ResponseEntity.ok(Map.of("message", "Workspace deleted successfully"));
     }

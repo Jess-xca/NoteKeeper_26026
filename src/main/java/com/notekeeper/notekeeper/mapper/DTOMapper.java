@@ -182,14 +182,15 @@ public class DTOMapper {
         if (member == null)
             return null;
 
-        return new WorkspaceMemberDTO(
-                member.getId(),
-                member.getWorkspace().getId(),
-                member.getUser().getId(),
-                toUserSummaryDTO(member.getUser()),
-                toWorkspaceSummaryDTO(member.getWorkspace()),
-                member.getRole().name(),
-                member.getJoinedAt());
+        WorkspaceMemberDTO dto = new WorkspaceMemberDTO();
+        dto.setId(member.getId());
+        dto.setWorkspaceId(member.getWorkspace().getId());
+        dto.setUserId(member.getUser().getId());
+        dto.setUser(toUserSummaryDTO(member.getUser()));
+        dto.setWorkspace(toWorkspaceSummaryDTO(member.getWorkspace()));
+        dto.setRole(member.getRole().name());
+        dto.setJoinedAt(member.getJoinedAt());
+        return dto;
     }
 
     // Notification Mappings

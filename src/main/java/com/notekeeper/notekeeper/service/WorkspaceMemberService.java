@@ -50,7 +50,8 @@ public class WorkspaceMemberService {
                 .orElseThrow(() -> new ResourceNotFoundException("Workspace not found"));
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseGet(() -> userRepository.findByEmail(userId)
+                        .orElseThrow(() -> new ResourceNotFoundException("User not found with ID or Email: " + userId)));
 
         if (workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, userId)) {
             throw new BadRequestException("User is already a member of this workspace");

@@ -18,28 +18,37 @@ public class WorkspaceMemberController {
     @Autowired
     private WorkspaceMemberService workspaceMemberService;
 
+    @Autowired
+    private com.notekeeper.notekeeper.service.PermissionService permissionService;
+
     @PostMapping
     public ResponseEntity<Map<String, String>> addMember(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
             @PathVariable String workspaceId,
             @RequestParam String userId,
             @RequestParam(defaultValue = "VIEWER") String role) {
+        permissionService.validateWorkspaceAccess(workspaceId, principal.getId(), com.notekeeper.notekeeper.model.WorkspaceRole.OWNER);
         workspaceMemberService.addMember(workspaceId, userId, role);
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Member added successfully"));
     }
 
     @DeleteMapping("/{userId}")
     public ResponseEntity<Map<String, String>> removeMember(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
             @PathVariable String workspaceId,
             @PathVariable String userId) {
+        permissionService.validateWorkspaceAccess(workspaceId, principal.getId(), com.notekeeper.notekeeper.model.WorkspaceRole.OWNER);
         workspaceMemberService.removeMember(workspaceId, userId);
         return ResponseEntity.ok(Map.of("message", "Member removed successfully"));
     }
 
     @PutMapping("/{userId}/role")
     public ResponseEntity<Map<String, String>> updateMemberRole(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
             @PathVariable String workspaceId,
             @PathVariable String userId,
             @RequestParam String role) {
+        permissionService.validateWorkspaceAccess(workspaceId, principal.getId(), com.notekeeper.notekeeper.model.WorkspaceRole.OWNER);
         workspaceMemberService.updateMemberRole(workspaceId, userId, role);
         return ResponseEntity.ok(Map.of("message", "Member role updated successfully"));
     }

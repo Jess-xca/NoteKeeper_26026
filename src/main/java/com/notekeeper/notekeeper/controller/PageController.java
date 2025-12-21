@@ -4,6 +4,7 @@ import com.notekeeper.notekeeper.dto.PageDTO;
 import com.notekeeper.notekeeper.mapper.DTOMapper;
 import com.notekeeper.notekeeper.model.Page;
 import com.notekeeper.notekeeper.service.PageService;
+import com.notekeeper.notekeeper.exception.UnauthorizedException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +31,9 @@ public class PageController {
 
     @Autowired
     private DTOMapper dtoMapper;
+
+    @Autowired
+    private com.notekeeper.notekeeper.service.PermissionService permissionService;
 
     // CREATE
     @PostMapping
@@ -60,7 +64,10 @@ public class PageController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PageDTO> getPageById(@PathVariable String id) {
+    public ResponseEntity<PageDTO> getPageById(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @PathVariable String id) {
+        permissionService.validatePageAccess(id, principal.getId(), "READ");
         Page page = pageService.getPageById(id);
         return ResponseEntity.ok(dtoMapper.toPageDTO(page));
     }
@@ -150,22 +157,30 @@ public class PageController {
 
     @PutMapping("/{id}")
     public ResponseEntity<PageDTO> updatePage(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
             @PathVariable String id,
             @RequestBody Page pageDetails) {
+        permissionService.validatePageAccess(id, principal.getId(), "EDIT");
         pageService.updatePage(id, pageDetails);
         Page updatedPage = pageService.getPageById(id);
         return ResponseEntity.ok(dtoMapper.toPageDTO(updatedPage));
     }
 
     @PutMapping("/{id}/toggle-favorite")
-    public ResponseEntity<PageDTO> toggleFavorite(@PathVariable String id) {
+    public ResponseEntity<PageDTO> toggleFavorite(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @PathVariable String id) {
+        permissionService.validatePageAccess(id, principal.getId(), "READ");
         pageService.toggleFavorite(id);
         Page page = pageService.getPageById(id);
         return ResponseEntity.ok(dtoMapper.toPageDTO(page));
     }
 
     @PutMapping("/{id}/toggle-archive")
-    public ResponseEntity<PageDTO> toggleArchive(@PathVariable String id) {
+    public ResponseEntity<PageDTO> toggleArchive(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @PathVariable String id) {
+        permissionService.validatePageAccess(id, principal.getId(), "EDIT");
         pageService.toggleArchive(id);
         Page page = pageService.getPageById(id);
         return ResponseEntity.ok(dtoMapper.toPageDTO(page));
@@ -173,15 +188,31 @@ public class PageController {
 
     @PutMapping("/{id}/move")
     public ResponseEntity<PageDTO> movePage(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
             @PathVariable String id,
             @RequestParam String workspaceId) {
+        permissionService.validatePageAccess(id, principal.getId(), "EDIT");
+        permissionService.validateWorkspaceAccess(workspaceId, principal.getId(), com.notekeeper.notekeeper.model.WorkspaceRole.EDITOR);
         pageService.movePage(id, workspaceId);
         Page page = pageService.getPageById(id);
         return ResponseEntity.ok(dtoMapper.toPageDTO(page));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, String>> deletePage(@PathVariable String id) {
+    public ResponseEntity<Map<String, String>> deletePage(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @PathVariable String id) {
+        // Only owner can delete for now, or use "owner" check in validatePageAccess if we want to allow editors to delete?
+        // Let's assume only owner or workspace OWNER can delete.
+        Page page = pageService.getPageById(id);
+        if (!page.getUser().getId().equals(principal.getId())) {
+             // Check if it's in a workspace and user is OWNER of that workspace
+             if (page.getWorkspace() != null) {
+                 permissionService.validateWorkspaceAccess(page.getWorkspace().getId(), principal.getId(), com.notekeeper.notekeeper.model.WorkspaceRole.OWNER);
+             } else {
+                 throw new UnauthorizedException("Only the owner can delete this page");
+             }
+        }
         pageService.deletePage(id);
         return ResponseEntity.ok(Map.of("message", "Page deleted successfully"));
     }
