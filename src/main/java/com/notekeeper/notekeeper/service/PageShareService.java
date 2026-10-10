@@ -1,6 +1,7 @@
 package com.notekeeper.notekeeper.service;
 
 import com.notekeeper.notekeeper.exception.BadRequestException;
+import com.notekeeper.notekeeper.messaging.OutboundMessageService;
 import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
 import com.notekeeper.notekeeper.model.Page;
 import com.notekeeper.notekeeper.model.PageShare;
@@ -27,7 +28,7 @@ public class PageShareService {
     private UserRepository userRepository;
 
     @Autowired
-    private EmailService emailService;
+    private OutboundMessageService outboundMessageService;
 
     @Autowired
     private NotificationService notificationService;
@@ -67,13 +68,18 @@ public class PageShareService {
                 com.notekeeper.notekeeper.model.NotificationType.SHARE
         );
 
-        // SEND EMAIL
-        emailService.sendShareNotification(
+        outboundMessageService.sendShareNotification(
                 sharedWith.getEmail(),
                 sharedBy.getFullName(),
                 page.getTitle(),
                 "Page"
         );
+        outboundMessageService.sendSms(
+                sharedWith.getPhoneNumber(),
+                sharedBy.getFullName() + " shared a page with you: " + page.getTitle());
+        outboundMessageService.publishAppEvent(
+                "page-shared",
+                "pageId=" + page.getId() + ",userId=" + sharedWith.getId());
 
         return savedShare;
     }

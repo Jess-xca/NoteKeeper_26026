@@ -1,6 +1,7 @@
 package com.notekeeper.notekeeper.service;
 
 import com.notekeeper.notekeeper.dto.WorkspaceMemberDTO;
+import com.notekeeper.notekeeper.messaging.OutboundMessageService;
 import com.notekeeper.notekeeper.mapper.DTOMapper;
 import com.notekeeper.notekeeper.model.User;
 import com.notekeeper.notekeeper.model.Workspace;
@@ -38,7 +39,7 @@ public class WorkspaceMemberService {
     private NotificationService notificationService;
 
     @Autowired
-    private EmailService emailService;
+    private OutboundMessageService outboundMessageService;
 
     @Transactional
     public void addMember(String workspaceId, String userId, String role) {
@@ -71,13 +72,18 @@ public class WorkspaceMemberService {
                 com.notekeeper.notekeeper.model.NotificationType.SHARE
         );
 
-        // SEND EMAIL
-        emailService.sendShareNotification(
+        outboundMessageService.sendShareNotification(
                 user.getEmail(),
                 workspace.getOwner().getFullName(),
                 workspace.getName(),
                 "Workspace"
         );
+        outboundMessageService.sendSms(
+                user.getPhoneNumber(),
+                workspace.getOwner().getFullName() + " added you to the workspace " + workspace.getName());
+        outboundMessageService.publishAppEvent(
+                "workspace-shared",
+                "workspaceId=" + workspace.getId() + ",userId=" + user.getId());
     }
 
 

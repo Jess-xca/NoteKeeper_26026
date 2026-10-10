@@ -1,5 +1,6 @@
 package com.notekeeper.notekeeper.service;
 
+import com.notekeeper.notekeeper.messaging.PageRevisionRecorder;
 import com.notekeeper.notekeeper.model.Page;
 import com.notekeeper.notekeeper.model.User;
 import com.notekeeper.notekeeper.model.Workspace;
@@ -31,6 +32,9 @@ public class PageService {
     @Autowired
     private TagRepository tagRepository;
 
+    @Autowired
+    private PageRevisionRecorder pageRevisionRecorder;
+
     // CREATE
     @Transactional
     public String createPage(Page page) {
@@ -57,6 +61,7 @@ public class PageService {
             }
         }
         Page saved = pageRepository.save(page);
+        pageRevisionRecorder.record(saved);
         return saved.getId();
     }
 
@@ -70,6 +75,7 @@ public class PageService {
 
         Page quickNote = new Page(title, content, user, inbox);
         Page saved = pageRepository.save(quickNote);
+        pageRevisionRecorder.record(saved);
         return saved.getId();
     }
 
@@ -127,7 +133,8 @@ public class PageService {
             syncTags(page, pageDetails.getPageTags());
         }
 
-        pageRepository.save(page);
+        Page saved = pageRepository.save(page);
+        pageRevisionRecorder.record(saved);
     }
 
     private void syncTags(Page page, List<com.notekeeper.notekeeper.model.PageTag> newPageTags) {

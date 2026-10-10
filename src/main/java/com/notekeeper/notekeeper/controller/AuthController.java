@@ -11,7 +11,7 @@ import com.notekeeper.notekeeper.repository.UserProfileRepository;
 import com.notekeeper.notekeeper.repository.WorkspaceRepository;
 import com.notekeeper.notekeeper.repository.PasswordResetTokenRepository;
 import com.notekeeper.notekeeper.repository.TwoFactorCodeRepository;
-import com.notekeeper.notekeeper.service.EmailService;
+import com.notekeeper.notekeeper.messaging.OutboundMessageService;
 import com.notekeeper.notekeeper.model.PasswordResetToken;
 import com.notekeeper.notekeeper.model.TwoFactorCode;
 import com.notekeeper.notekeeper.security.JwtUtil;
@@ -49,7 +49,7 @@ public class AuthController {
     private DTOMapper dtoMapper;
 
     @Autowired
-    private EmailService emailService;
+    private OutboundMessageService outboundMessageService;
 
     @Autowired
     private PasswordResetTokenRepository passwordResetTokenRepository;
@@ -119,7 +119,7 @@ public class AuthController {
             System.out.println("========================================");
             
             try {
-                emailService.send2FACode(user.getEmail(), code.getCode());
+                outboundMessageService.send2FACode(user.getEmail(), code.getCode());
             } catch (Exception e) {
                 System.out.println("❌ Failed to send 2FA email: " + e.getMessage());
             }
@@ -286,7 +286,7 @@ public class AuthController {
         System.out.println("========================================");
         
         try {
-            emailService.send2FACode(email, twoFactorCode.getCode());
+            outboundMessageService.send2FACode(email, twoFactorCode.getCode());
         } catch (Exception e) {
             System.out.println("❌ Failed to send 2FA email: " + e.getMessage());
         }
@@ -396,7 +396,7 @@ public class AuthController {
             System.out.println("========================================");
             
             try {
-                emailService.send2FACode(email, twoFactorCode.getCode());
+                outboundMessageService.send2FACode(email, twoFactorCode.getCode());
             } catch (Exception emailEx) {
                 System.out.println("❌ Failed to send 2FA email");
             }
@@ -477,7 +477,7 @@ public class AuthController {
 
             System.out.println("🔑 PASSWORD RESET TOKEN: " + resetToken.getToken());
             try {
-                emailService.sendPasswordResetEmail(user.getEmail(), resetToken.getToken());
+                outboundMessageService.sendPasswordResetEmail(user.getEmail(), resetToken.getToken());
             } catch (Exception e) {
                 System.out.println("❌ Failed to send reset email");
             }
@@ -533,7 +533,7 @@ public class AuthController {
         twoFactorCodeRepository.save(code);
 
         try {
-            emailService.send2FACode(user.getEmail(), code.getCode());
+            outboundMessageService.send2FACode(user.getEmail(), code.getCode());
         } catch (Exception e) {
             throw new RuntimeException("Failed to send 2FA code: " + e.getMessage());
         }
