@@ -139,9 +139,9 @@ Database name: `notekeeper`. These collections are written only when the applica
 
 ### delivery_logs
 
-- `channel` one of `sms` or `app`
-- `recipient` string
-- `body` string
+- `channel` one of `email`, `sms` or `app`
+- `recipient` string (an e-mail address, a phone number, or the event name for `app`)
+- `body` string (for `email` only the subject is kept, because e-mail bodies can contain sign-in codes and reset links)
 - `recordedAt` timestamp
 - Index: `channel`
 
@@ -149,7 +149,7 @@ Database name: `notekeeper`. These collections are written only when the applica
 
 Durable queues:
 
-- `email` — verification codes, password resets, and share emails. A worker sends them through the existing SMTP mail sender.
+- `email` — verification codes, password resets, and share emails. A worker sends them through the existing SMTP mail sender, then records a delivery log entry (subject only).
 - `sms` — text messages. A worker writes them to `delivery_logs`. No external SMS provider is called.
 - `app-events` — events such as `page-shared` and `workspace-shared`. A worker writes them to `delivery_logs`.
 

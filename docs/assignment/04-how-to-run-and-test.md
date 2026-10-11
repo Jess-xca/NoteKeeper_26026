@@ -1,4 +1,4 @@
-# How to run and how to test
+﻿# How to run and how to test
 
 ## Two ways to run
 
@@ -80,4 +80,15 @@ A run is successful when the command finishes with no failed tests.
 5. Sign in as the invitee and open "Shared with me": the page is there with a Viewer or Editor badge. Open it, then check "Recent history".
 6. Sign in as an admin. The dashboard shows the system overview above your own notes. Open the Settings tab, switch registration off, and confirm the register page now refuses a new account. Switch it back on.
 7. As the admin, open Pages and choose Everyone: every page shows with its author.
-8. Open RabbitMQ at `http://localhost:15672` and confirm a share or sign-in action created a message. In MongoDB, confirm a document in `page_revisions`.
+8. Open RabbitMQ at `http://localhost:15672` (Queues tab) and confirm the `email`, `sms` and `app-events` queues exist. Messages are consumed at once, so look at the message rates.
+9. As the admin, open **MongoDB Data** in the sidebar. **Page revisions** shows one entry for every save, with a View button for the full text. **Delivery log** shows the e-mail, SMS and app events that went through RabbitMQ, with filters. No MongoDB cluster or account is needed: the database is the `mongo` container in this compose file. For a raw view, MongoDB Compass can connect to `mongodb://127.0.0.1:27017` (not `localhost`, which can resolve to IPv6 on Windows), or open mongo-express at http://localhost:8081.
+10. Sign in with 2FA on. The server console (`docker compose logs -f backend`, or the `mvn` window) prints one plain line, `[2FA] PIN for <email>: 123456`. The PIN is never shown in the UI. Use the e-mail you receive.
+
+The **MongoDB Data** screen is admin-only and says "MongoDB is not connected" in a local run, because only the Docker stack uses MongoDB.
+
+
+## Scripts
+
+- `.\scripts\seed-demo-data.ps1`: fills the running Docker stack with demo users, workspaces, pages, shares and revisions.
+- `.\scripts\docker-smoke.ps1`: calls every endpoint against http://localhost:8080 and prints PASS/FAIL (136 checks, exit code 1 on any failure).
+
