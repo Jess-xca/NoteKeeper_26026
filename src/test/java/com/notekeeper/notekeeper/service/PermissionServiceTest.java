@@ -8,6 +8,7 @@ import com.notekeeper.notekeeper.model.WorkspaceMember;
 import com.notekeeper.notekeeper.model.WorkspaceRole;
 import com.notekeeper.notekeeper.repository.PageRepository;
 import com.notekeeper.notekeeper.repository.PageShareRepository;
+import com.notekeeper.notekeeper.repository.UserRepository;
 import com.notekeeper.notekeeper.repository.WorkspaceMemberRepository;
 import com.notekeeper.notekeeper.repository.WorkspaceRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +21,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
@@ -34,6 +37,8 @@ class PermissionServiceTest {
     private WorkspaceMemberRepository workspaceMemberRepository;
     @Mock
     private WorkspaceRepository workspaceRepository;
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private PermissionService permissionService;
@@ -93,10 +98,91 @@ class PermissionServiceTest {
                 "workspace-1", "viewer", WorkspaceRole.OWNER));
     }
 
+    @Test
+    void outsiderCannotReadPage() {
+        stubPage();
+        when(pageShareRepository.findByPageIdAndSharedWithId("page-1", "outsider")).thenReturn(Optional.empty());
+        when(workspaceMemberRepository.findByWorkspaceIdAndUserId("workspace-1", "outsider"))
+                .thenReturn(Optional.empty());
+        when(userRepository.findById("outsider")).thenReturn(Optional.empty());
+
+        assertThrows(UnauthorizedException.class,
+                () -> permissionService.validatePageAccess("page-1", "outsider", "READ"));
+    }
+
+    @Test
+    void workspaceOwnerCanEditPagesWrittenByOthers() {
+        stubPage();
+        User wsOwner = org.mockito.Mockito.mock(User.class);
+        when(wsOwner.getId()).thenReturn("ws-owner");
+        when(workspace.getOwner()).thenReturn(wsOwner);
+
+        assertDoesNotThrow(() -> permissionService.validatePageAccess("page-1", "ws-owner", "EDIT"));
+    }
+
+    @Test
+    void adminCanReadButNotEditSomeoneElsesPage() {
+        stubPage();
+        when(pageShareRepository.findByPageIdAndSharedWithId("page-1", "admin")).thenReturn(Optional.empty());
+        when(workspaceMemberRepository.findByWorkspaceIdAndUserId("workspace-1", "admin"))
+                .thenReturn(Optional.empty());
+        User admin = org.mockito.Mockito.mock(User.class);
+        when(admin.getRole()).thenReturn("ADMIN");
+        when(userRepository.findById("admin")).thenReturn(Optional.of(admin));
+
+        assertDoesNotThrow(() -> permissionService.validatePageAccess("page-1", "admin", "READ"));
+        assertThrows(UnauthorizedException.class,
+                () -> permissionService.validatePageAccess("page-1", "admin", "EDIT"));
+    }
+
+    @Test
+    void nonMemberCannotOpenWorkspace() {
+        User owner = org.mockito.Mockito.mock(User.class);
+        when(owner.getId()).thenReturn("owner");
+        when(workspace.getOwner()).thenReturn(owner);
+        when(workspaceRepository.findById("workspace-1")).thenReturn(Optional.of(workspace));
+        when(workspaceMemberRepository.findByWorkspaceIdAndUserId("workspace-1", "outsider"))
+                .thenReturn(Optional.empty());
+        when(userRepository.findById("outsider")).thenReturn(Optional.empty());
+
+        assertThrows(UnauthorizedException.class, () -> permissionService.validateWorkspaceAccess(
+                "workspace-1", "outsider", WorkspaceRole.VIEWER));
+    }
+
+    @Test
+    void viewerCannotCreatePagesButEditorCan() {
+        User owner = org.mockito.Mockito.mock(User.class);
+        when(owner.getId()).thenReturn("owner");
+        when(workspace.getOwner()).thenReturn(owner);
+        when(workspaceRepository.findById("workspace-1")).thenReturn(Optional.of(workspace));
+        member("viewer", WorkspaceRole.VIEWER);
+        member("editor", WorkspaceRole.EDITOR);
+
+        assertThrows(UnauthorizedException.class, () -> permissionService.validateWorkspaceAccess(
+                "workspace-1", "viewer", WorkspaceRole.EDITOR));
+        assertDoesNotThrow(() -> permissionService.validateWorkspaceAccess(
+                "workspace-1", "editor", WorkspaceRole.EDITOR));
+    }
+
+    @Test
+    void workspaceRoleIsOwnerEditorViewerOrNull() {
+        User owner = org.mockito.Mockito.mock(User.class);
+        when(owner.getId()).thenReturn("owner");
+        when(workspace.getOwner()).thenReturn(owner);
+        when(workspaceRepository.findById("workspace-1")).thenReturn(Optional.of(workspace));
+        member("viewer", WorkspaceRole.VIEWER);
+        when(workspaceMemberRepository.findByWorkspaceIdAndUserId("workspace-1", "stranger"))
+                .thenReturn(Optional.empty());
+
+        assertEquals(WorkspaceRole.OWNER, permissionService.getWorkspaceRole("workspace-1", "owner"));
+        assertEquals(WorkspaceRole.VIEWER, permissionService.getWorkspaceRole("workspace-1", "viewer"));
+        assertNull(permissionService.getWorkspaceRole("workspace-1", "stranger"));
+    }
+
     private void stubPage() {
         User author = org.mockito.Mockito.mock(User.class);
         when(author.getId()).thenReturn("author");
-        when(workspace.getId()).thenReturn("workspace-1");
+        org.mockito.Mockito.lenient().when(workspace.getId()).thenReturn("workspace-1");
         page = org.mockito.Mockito.mock(Page.class);
         when(page.getUser()).thenReturn(author);
         when(page.getWorkspace()).thenReturn(workspace);
