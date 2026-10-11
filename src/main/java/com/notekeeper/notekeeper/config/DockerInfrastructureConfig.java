@@ -2,6 +2,7 @@ package com.notekeeper.notekeeper.config;
 
 import com.notekeeper.notekeeper.repository.mongo.DeliveryLogRepository;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
@@ -57,6 +58,17 @@ public class DockerInfrastructureConfig {
         factory.setUsername("guest");
         factory.setPassword("guest");
         return factory;
+    }
+
+    /**
+     * Declares the queues above on the broker as soon as a connection opens.
+     * Spring Boot would normally add this bean for us, but its Rabbit auto-configuration is
+     * switched off in NotekeeperApplication, so without it the queues are never created and the
+     * listeners fail with "NOT_FOUND - no queue 'sms'".
+     */
+    @Bean
+    public RabbitAdmin rabbitAdmin(ConnectionFactory rabbitConnectionFactory) {
+        return new RabbitAdmin(rabbitConnectionFactory);
     }
 
     @Bean

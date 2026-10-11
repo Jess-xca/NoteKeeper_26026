@@ -9,6 +9,11 @@ services:
       - "5433:5432"
     volumes:
       - notekeeper_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d notekeeper"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   mongo:
     image: mongo:7
@@ -17,22 +22,52 @@ services:
     volumes:
       - notekeeper_mongo:/data/db
 
+  # Browser view of MongoDB at http://localhost:8081 (no login, local machine only).
+  # Easier than a desktop client: it talks to MongoDB inside the Docker network.
+  mongo-express:
+    image: mongo-express:1.0.2-20
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_BASICAUTH: "false"
+    ports:
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      - mongo
+    restart: on-failure
+
   rabbitmq:
     image: rabbitmq:3-management
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   backend:
     build: .
+    restart: on-failure
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      # Docker Compose fills these in from the .env file next to this docker-compose.yml.
+      # The fallbacks let the stack start without a .env, but real e-mail needs the SMTP pair.
+      SMTP_USERNAME: ${SMTP_USERNAME:-unused@example.com}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-unused}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-local-demo}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-local-demo}
+      JWT_SECRET: ${JWT_SECRET:-assignment-demo-secret-key-must-be-long}
     ports:
       - "8080:8080"
     depends_on:
-      - postgres
-      - mongo
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   frontend:
     build: ../NoteKeeper_Frontend_26026
