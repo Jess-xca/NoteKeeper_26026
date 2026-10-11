@@ -52,13 +52,22 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserDTO> getUserById(@PathVariable String id) {
+    public ResponseEntity<UserDTO> getUserById(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @PathVariable String id) {
+        requireSelfOrAdmin(principal, id);
         UserDTO user = userService.getUserByIdDTO(id);
         return ResponseEntity.ok(user);
     }
 
     @GetMapping("/username/{username}")
-    public ResponseEntity<UserDTO> getUserByUsername(@PathVariable String username) {
+    public ResponseEntity<UserDTO> getUserByUsername(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @PathVariable String username) {
+        if (!isAdmin(principal) && !principal.getUsername().equals(username)) {
+            throw new com.notekeeper.notekeeper.exception.UnauthorizedException(
+                    "You can only look at your own account");
+        }
         UserDTO user = userService.getUserByUsernameDTO(username);
         return ResponseEntity.ok(user);
     }
@@ -82,7 +91,10 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<UserDTO> updateUser(@PathVariable String id, @RequestBody UserDTO userDTO) {
+    public ResponseEntity<UserDTO> updateUser(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @PathVariable String id, @RequestBody UserDTO userDTO) {
+        requireSelfOrAdmin(principal, id);
         UserDTO updated = userService.updateUser(id, userDTO);
         return ResponseEntity.ok(updated);
     }
@@ -95,7 +107,10 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, String>> deleteUser(@PathVariable String id) {
+    public ResponseEntity<Map<String, String>> deleteUser(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @PathVariable String id) {
+        requireSelfOrAdmin(principal, id);
         userService.deleteUserDTO(id);
         return ResponseEntity.ok(Map.of("message", "User deleted successfully"));
     }
@@ -127,8 +142,15 @@ public class UserController {
     }
 
     @PutMapping("/{id}/change-password")
-    public ResponseEntity<Map<String, String>> changePassword(@PathVariable String id,
+    public ResponseEntity<Map<String, String>> changePassword(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @PathVariable String id,
             @RequestBody ChangePasswordRequest request) {
+        // Nobody changes somebody else's password here; an admin uses the reset link instead
+        if (!principal.getId().equals(id)) {
+            throw new com.notekeeper.notekeeper.exception.UnauthorizedException(
+                    "You can only change your own password");
+        }
         if (request.getCurrentPassword() == null || request.getCurrentPassword().trim().isEmpty()) {
             throw new com.notekeeper.notekeeper.exception.BadRequestException("Current password is required");
         }
@@ -138,5 +160,16 @@ public class UserController {
 
         userService.changePassword(id, request.getCurrentPassword(), request.getNewPassword());
         return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+    }
+
+    private static boolean isAdmin(com.notekeeper.notekeeper.security.UserPrincipal principal) {
+        return principal != null && "ADMIN".equalsIgnoreCase(principal.getUser().getRole());
+    }
+
+    private static void requireSelfOrAdmin(com.notekeeper.notekeeper.security.UserPrincipal principal, String id) {
+        if (!isAdmin(principal) && (principal == null || !principal.getId().equals(id))) {
+            throw new com.notekeeper.notekeeper.exception.UnauthorizedException(
+                    "You can only change or look at your own account");
+        }
     }
 }

@@ -30,7 +30,11 @@ public class WorkspaceController {
 
     // CREATE
     @PostMapping
-    public ResponseEntity<WorkspaceDTO> createWorkspace(@RequestBody Workspace workspace) {
+    public ResponseEntity<WorkspaceDTO> createWorkspace(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @RequestBody Workspace workspace) {
+        // You can only create workspaces for yourself, whatever the request body says
+        workspace.setOwner(principal.getUser());
         String resultId = workspaceService.createWorkspace(workspace);
         Workspace createdWorkspace = workspaceService.getWorkspaceById(resultId);
         return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toWorkspaceDTO(createdWorkspace));

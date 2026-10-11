@@ -46,11 +46,20 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
-                .requestMatchers("/api/users").permitAll()  // Allow user registration
-                .requestMatchers("/api/locations/**").permitAll()  // Allow location lookups
-                .requestMatchers("/api/profiles/**").permitAll()  // Allow profile access (needed during registration)
+                .requestMatchers(HttpMethod.POST, "/api/users").permitAll()  // Allow user registration
+                .requestMatchers(HttpMethod.GET, "/api/locations/**").permitAll()  // Location lookups (sign-up form)
+                // Cover images are loaded by <img> tags, which cannot send a token. The controller only
+                // serves files inside the uploads folder, and their names are random.
+                .requestMatchers(HttpMethod.GET, "/api/attachments/download-by-path").permitAll()
                 // System-wide lists and settings are for administrators only
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/locations/**").hasRole("ADMIN")  // editing the location tree
+                .requestMatchers(HttpMethod.GET, "/api/profiles/my").authenticated()
+                .requestMatchers("/api/profiles/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/users/admin/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET,
+                        "/api/users", "/api/users/search", "/api/users/by-location",
+                        "/api/users/by-province-code", "/api/users/sorted", "/api/users/paginated").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET,
                         "/api/pages", "/api/pages/paginated", "/api/pages/search",
                         "/api/workspaces", "/api/workspaces/paginated", "/api/workspaces/search",

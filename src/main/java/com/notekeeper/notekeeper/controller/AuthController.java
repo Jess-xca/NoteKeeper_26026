@@ -12,6 +12,7 @@ import com.notekeeper.notekeeper.repository.WorkspaceRepository;
 import com.notekeeper.notekeeper.repository.PasswordResetTokenRepository;
 import com.notekeeper.notekeeper.repository.TwoFactorCodeRepository;
 import com.notekeeper.notekeeper.messaging.OutboundMessageService;
+import com.notekeeper.notekeeper.util.ConsoleBanner;
 import com.notekeeper.notekeeper.model.PasswordResetToken;
 import com.notekeeper.notekeeper.model.TwoFactorCode;
 import com.notekeeper.notekeeper.security.JwtUtil;
@@ -94,10 +95,7 @@ public class AuthController {
 
         // Verify hashed password
         if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
-            System.out.println("❌ Login failed for user: " + user.getUsername());
-            System.out.println("   Input password length: " + (loginRequest.getPassword() != null ? loginRequest.getPassword().length() : 0));
-            System.out.println("   Stored hash: " + user.getPassword());
-            System.out.println("   Encoded input would be: " + passwordEncoder.encode(loginRequest.getPassword()));
+            System.out.println("Login failed for user: " + user.getUsername());
             throw new BadRequestException("Invalid username or password");
         }
 
@@ -116,10 +114,7 @@ public class AuthController {
             TwoFactorCode code = new TwoFactorCode(user);
             twoFactorCodeRepository.save(code);
             
-            System.out.println("========================================");
-            System.out.println("📧 2FA PIN for " + user.getEmail());
-            System.out.println("🔑 PIN CODE: " + code.getCode());
-            System.out.println("========================================");
+            ConsoleBanner.printPin("for " + user.getEmail(), code.getCode());
             
             try {
                 outboundMessageService.send2FACode(user.getEmail(), code.getCode());
@@ -240,80 +235,6 @@ public class AuthController {
         return ResponseEntity.ok(dtoMapper.toUserDTO(principal.getUser()));
     }
 
-    @PostMapping("/google-login")
-    public ResponseEntity<LoginResponse> googleLogin(@RequestBody GoogleLoginRequest googleLoginRequest) {
-        // Validate input
-        if (googleLoginRequest.getIdToken() == null || googleLoginRequest.getIdToken().trim().isEmpty()) {
-            throw new com.notekeeper.notekeeper.exception.BadRequestException("ID token is required");
-        }
-
-        // Mock data for testing (In production, use real Google verification)
-        String email = "test@example.com";
-        String firstName = "Test";
-        String lastName = "User";
-
-        // Find or create user
-        User user = userRepository.findByEmail(email).orElseGet(() -> {
-            if (!systemSettingService.isRegistrationAllowed()) {
-                throw new BadRequestException("New registrations are currently disabled by the administrator");
-            }
-            User newUser = new User();
-            newUser.setUsername(email); 
-            newUser.setEmail(email);
-            newUser.setPassword(passwordEncoder.encode("dummy_password_" + UUID.randomUUID()));
-            newUser.setFirstName(firstName != null ? firstName : "Google");
-            newUser.setLastName(lastName != null ? lastName : "User");
-            newUser.setRole(systemSettingService.getDefaultRole());
-            newUser = userRepository.save(newUser);
-
-            // Create default assets
-            UserProfile profile = new UserProfile(newUser);
-            userProfileRepository.save(profile);
-
-            Workspace inbox = new Workspace("Inbox", newUser, true);
-            inbox.setDescription("Quick capture notes");
-            inbox.setIcon("📥");
-            workspaceRepository.save(inbox);
-            
-            return newUser;
-        });
-
-        // Handle 2FA for Google Login
-        boolean requiresTwoFactor = true; 
-        if (user.getTwoFactorEnabled() == null || !user.getTwoFactorEnabled()) {
-            user.setTwoFactorEnabled(true);
-            userRepository.save(user);
-        }
-
-        // Generate and send 2FA code
-        twoFactorCodeRepository.deleteByUserId(user.getId());
-        TwoFactorCode twoFactorCode = new TwoFactorCode(user);
-        twoFactorCodeRepository.save(twoFactorCode);
-        
-        System.out.println("========================================");
-        System.out.println("📧 2FA PIN for Google Login: " + email);
-        System.out.println("🔑 PIN CODE: " + twoFactorCode.getCode());
-        System.out.println("========================================");
-        
-        try {
-            outboundMessageService.send2FACode(email, twoFactorCode.getCode());
-        } catch (Exception e) {
-            System.out.println("❌ Failed to send 2FA email: " + e.getMessage());
-        }
-
-        String token = jwtUtil.generateToken(user.getUsername());
-        UserDTO userDTO = dtoMapper.toUserDTO(user);
-
-        LoginResponse response = new LoginResponse(
-                true,
-                "Check your email for the verification code",
-                token,
-                userDTO);
-        response.setRequiresTwoFactor(true);
-
-        return ResponseEntity.ok(response);
-    }
-
     @PostMapping("/google-callback")
     public ResponseEntity<LoginResponse> googleCallback(@RequestBody Map<String, String> request) {
         String code = request.get("code");
@@ -403,10 +324,7 @@ public class AuthController {
             TwoFactorCode twoFactorCode = new TwoFactorCode(user);
             twoFactorCodeRepository.save(twoFactorCode);
             
-            System.out.println("========================================");
-            System.out.println("📧 2FA PIN for Google Login: " + email);
-            System.out.println("🔑 PIN CODE: " + twoFactorCode.getCode());
-            System.out.println("========================================");
+            ConsoleBanner.printPin("for Google login: " + email, twoFactorCode.getCode());
             
             try {
                 outboundMessageService.send2FACode(email, twoFactorCode.getCode());
@@ -544,6 +462,8 @@ public class AuthController {
         twoFactorCodeRepository.deleteByUserId(userId);
         TwoFactorCode code = new TwoFactorCode(user);
         twoFactorCodeRepository.save(code);
+
+        ConsoleBanner.printPin("resent to " + user.getEmail(), code.getCode());
 
         try {
             outboundMessageService.send2FACode(user.getEmail(), code.getCode());
