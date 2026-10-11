@@ -53,33 +53,33 @@ public class PageShareController {
 
     // READ - Get all shares for a page (page managers only)
     @GetMapping("/page/{pageId}")
-    public ResponseEntity<List<PageShare>> getPageShares(
+    public ResponseEntity<List<Map<String, Object>>> getPageShares(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable String pageId) {
-        return ResponseEntity.ok(pageShareService.getPageShares(pageId, principal.getId()));
+        return ResponseEntity.ok(views(pageShareService.getPageShares(pageId, principal.getId())));
     }
 
     // READ - Pages shared with me
     @GetMapping("/mine")
-    public ResponseEntity<List<PageShare>> getSharedWithMe(@AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(pageShareService.getSharedWithUser(principal.getId()));
+    public ResponseEntity<List<Map<String, Object>>> getSharedWithMe(@AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(views(pageShareService.getSharedWithUser(principal.getId())));
     }
 
     // READ - Pages I shared
     @GetMapping("/shared-by-me")
-    public ResponseEntity<List<PageShare>> getSharedByMe(@AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(pageShareService.getSharedByUser(principal.getId()));
+    public ResponseEntity<List<Map<String, Object>>> getSharedByMe(@AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(views(pageShareService.getSharedByUser(principal.getId())));
     }
 
     // UPDATE - Change share permission
     @PutMapping("/{shareId}")
-    public ResponseEntity<PageShare> updateSharePermission(
+    public ResponseEntity<Map<String, Object>> updateSharePermission(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable String shareId,
             @RequestBody Map<String, String> request) {
         String permission = request.get("permission");
         PageShare updated = pageShareService.updateSharePermission(shareId, permission, principal.getId());
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(view(updated));
     }
 
     // DELETE - Remove share
@@ -89,5 +89,31 @@ public class PageShareController {
             @PathVariable String shareId) {
         pageShareService.removeShare(shareId, principal.getId());
         return ResponseEntity.ok(Map.of("message", "Share removed successfully"));
+    }
+
+    // The entity points at lazy pages and users, which cannot be sent as JSON; send what the screen needs.
+    private static List<Map<String, Object>> views(List<PageShare> shares) {
+        return shares.stream().map(PageShareController::view).toList();
+    }
+
+    private static Map<String, Object> view(PageShare share) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", share.getId());
+        map.put("pageId", share.getPage().getId());
+        map.put("pageTitle", share.getPage().getTitle());
+        map.put("sharedBy", person(share.getSharedBy()));
+        map.put("sharedWith", person(share.getSharedWith()));
+        map.put("permission", share.getPermission());
+        map.put("sharedAt", share.getSharedAt());
+        return map;
+    }
+
+    private static Map<String, Object> person(com.notekeeper.notekeeper.model.User user) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", user.getId());
+        map.put("email", user.getEmail());
+        map.put("firstName", user.getFirstName());
+        map.put("lastName", user.getLastName());
+        return map;
     }
 }

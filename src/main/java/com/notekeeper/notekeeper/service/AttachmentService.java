@@ -33,6 +33,9 @@ public class AttachmentService {
     @Autowired
     private UserRepository userRepository;
 
+    /** Every uploaded file lives under this folder; nothing outside it is ever served. */
+    public static final Path UPLOAD_ROOT = Paths.get("uploads");
+
     private final String uploadDir = "uploads/attachments/";
 
     @Transactional
