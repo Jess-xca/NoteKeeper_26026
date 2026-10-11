@@ -72,6 +72,24 @@ Primary keys are UUID strings. Foreign keys are the `*_id` columns below. Unique
 - `shared_with` foreign key to `users.id`
 - `permission` VIEW or EDIT
 
+### page_views
+
+One row per person and page: the last time that person opened the page. It drives Recent history. Columns are plain ids with no foreign keys, so a deleted page or user never blocks a write. Rows for a deleted page are removed with the page.
+
+- `id` primary key
+- `user_id` the person who opened the page
+- `page_id` the page that was opened
+- `last_viewed_at` time of the latest open
+- Index: unique on (`user_id`, `page_id`), and (`user_id`, `last_viewed_at`) for the newest-first list
+
+### system_settings
+
+Switches the administrator controls from the dashboard Settings tab. One row per setting.
+
+- `setting_key` primary key: `allowRegistration`, `defaultRole`, `requireTwoFactor`, `emailNotifications`, `smsNotifications`
+- `setting_value` text
+- A missing row means the default: sign-up on, default role USER, two-factor on, email on, SMS on.
+
 ### attachments
 
 - `id` primary key
@@ -101,6 +119,8 @@ erDiagram
   TAG ||--o{ PAGE_TAG : applied
   PAGE ||--o{ PAGE_SHARE : shared_as
   USER ||--o{ PAGE_SHARE : receives
+  USER ||--o{ PAGE_VIEW : opens
+  PAGE ||--o{ PAGE_VIEW : opened_as
 ```
 
 ## MongoDB

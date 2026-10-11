@@ -63,7 +63,12 @@ A run is successful when the command finishes with no failed tests.
 - An email, an SMS, and a page-shared event each have a type, a recipient, and a body.
 - The RabbitMQ publisher addresses the `email`, `sms`, and `app-events` queues.
 - A visitor who opens the dashboard is shown the sign-in page.
-- A normal user who opens an admin route is sent to the dashboard.
+- A normal user who opens an admin route is sent to the dashboard. The old admin dashboard address leads an admin to the normal dashboard.
+- Backend, two real users plus an admin: invite and accept; an editor can edit and a viewer gets 403; an outsider gets 403; a page appears in the invitee's "Shared with me" and never in the owner's; opening a page records history, and a page removed from access drops out of it.
+- Backend: only an admin can read the system-wide page and workspace lists, an admin can read and delete but not edit someone else's page, and a public sign-up cannot choose its own role.
+- Backend: the admin settings are saved, switching registration off blocks sign-up, switching two-factor off lets password sign-in skip the code, and a normal user gets 403 on the settings.
+- Frontend: only an admin sees the system overview, the Settings tab, and the Mine / Everyone switch. Everyone adds an Author column.
+- Frontend: Shared with me shows the role and who shared; Recent history groups by Today, Yesterday, and Earlier and can be cleared.
 - An empty sign-in form shows "Please fill in all fields".
 
 ## Browser checklist for the Docker stack
@@ -72,4 +77,7 @@ A run is successful when the command finishes with no failed tests.
 2. Create a workspace, create a page, type some text, save, and refresh. The text is still there.
 3. Invite another user as a viewer. Sign in as that user and confirm they can read and cannot edit.
 4. Narrow the window to about 375 pixels and confirm the sign-in form and workspace cards still fit.
-5. Open RabbitMQ at `http://localhost:15672` and confirm a share or sign-in action created a message. In MongoDB, confirm a document in `page_revisions`.
+5. Sign in as the invitee and open "Shared with me": the page is there with a Viewer or Editor badge. Open it, then check "Recent history".
+6. Sign in as an admin. The dashboard shows the system overview above your own notes. Open the Settings tab, switch registration off, and confirm the register page now refuses a new account. Switch it back on.
+7. As the admin, open Pages and choose Everyone: every page shows with its author.
+8. Open RabbitMQ at `http://localhost:15672` and confirm a share or sign-in action created a message. In MongoDB, confirm a document in `page_revisions`.

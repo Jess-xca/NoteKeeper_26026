@@ -25,7 +25,8 @@ In scope:
 
 - Accounts, Google sign-in, and email verification codes.
 - Workspaces, pages, tags, sharing, and roles.
-- An administrator area for users, pages, and workspaces.
+- One dashboard for everyone. Administrators see a system overview and a Settings tab on it, and a Mine / Everyone switch on the Pages and Workspaces screens.
+- A "Shared with me" screen and a "Recent history" screen.
 - The Docker assignment stack: PostgreSQL, MongoDB, and RabbitMQ.
 
 Out of scope:
@@ -40,9 +41,13 @@ Out of scope:
 2. A signed-in person can create a workspace and a page, then edit that page.
 3. A workspace owner can add a member as VIEWER or EDITOR.
 4. A viewer can read a shared workspace and cannot manage members.
-5. An administrator can open the admin pages. A normal user cannot.
+5. An administrator sees the system overview, the Settings tab, User Management, and the Everyone view of pages and workspaces. A normal user sees none of them.
 6. Saving a page in the Docker stack writes the page to PostgreSQL and a copy of that version to MongoDB.
-7. Share, verification-code, and password-reset messages are placed on RabbitMQ in the Docker stack.
+7. Share, invitation, verification-code, and password-reset messages are placed on RabbitMQ in the Docker stack.
+8. A workspace owner invites a person by email as VIEWER or EDITOR. The invitee accepts. A viewer can read, an editor can edit, only the owner manages members and deletes the workspace.
+9. "Shared with me" lists pages from other people's workspaces the person was invited to. Their own pages never appear there.
+10. "Recent history" lists the pages the person opened, newest first, and can be cleared.
+11. An administrator can turn registration, two-factor sign-in, email, and SMS on or off, and choose the default role for new users (USER or EDITOR).
 
 ## Quality attributes
 
