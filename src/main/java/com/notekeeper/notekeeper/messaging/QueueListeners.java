@@ -22,6 +22,12 @@ public class QueueListeners {
     @RabbitListener(queues = "email")
     public void onEmail(AppEvent event) {
         emailService.sendEmail(event.getRecipient(), event.getSubject(), event.getBody());
+        // Only the subject is kept: e-mail bodies can hold sign-in codes and reset links.
+        try {
+            deliveryLogRepository.save(new DeliveryLog("email", event.getRecipient(), event.getSubject()));
+        } catch (Exception e) {
+            // The mail has already gone out. A logging problem must not make RabbitMQ redeliver it.
+        }
     }
 
     @RabbitListener(queues = "sms")
