@@ -1,6 +1,7 @@
 package com.notekeeper.notekeeper.service;
 
 import com.notekeeper.notekeeper.exception.BadRequestException;
+import com.notekeeper.notekeeper.exception.UnauthorizedException;
 import com.notekeeper.notekeeper.messaging.OutboundMessageService;
 import com.notekeeper.notekeeper.exception.ResourceNotFoundException;
 import com.notekeeper.notekeeper.model.Page;
@@ -38,9 +39,15 @@ public class PageShareService {
         if (pageId == null || sharedById == null || email == null) {
             throw new BadRequestException("pageId, sharedById, and email are required");
         }
+        if (permission == null || (!permission.equals("VIEW") && !permission.equals("EDIT"))) {
+            throw new BadRequestException("Permission must be VIEW or EDIT");
+        }
 
         Page page = pageRepository.findById(pageId)
                 .orElseThrow(() -> new ResourceNotFoundException("Page not found"));
+
+        // Only the page's author or the owner of its workspace may share it
+        requirePageManager(page, sharedById);
 
         User sharedBy = userRepository.findById(sharedById)
                 .orElseThrow(() -> new ResourceNotFoundException("Sharing user not found"));
@@ -84,7 +91,10 @@ public class PageShareService {
         return savedShare;
     }
 
-    public List<PageShare> getPageShares(String pageId) {
+    public List<PageShare> getPageShares(String pageId, String requesterId) {
+        Page page = pageRepository.findById(pageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Page not found"));
+        requirePageManager(page, requesterId);
         return pageShareRepository.findByPageId(pageId);
     }
 
@@ -97,22 +107,33 @@ public class PageShareService {
     }
 
     @Transactional
-    public PageShare updateSharePermission(String shareId, String permission) {
+    public PageShare updateSharePermission(String shareId, String permission, String requesterId) {
         if (permission == null || (!permission.equals("VIEW") && !permission.equals("EDIT"))) {
             throw new BadRequestException("Permission must be VIEW or EDIT");
         }
 
         PageShare share = pageShareRepository.findById(shareId)
                 .orElseThrow(() -> new ResourceNotFoundException("Share not found"));
+        requirePageManager(share.getPage(), requesterId);
 
         share.setPermission(permission);
         return pageShareRepository.save(share);
     }
 
     @Transactional
-    public void removeShare(String shareId) {
+    public void removeShare(String shareId, String requesterId) {
         PageShare share = pageShareRepository.findById(shareId)
                 .orElseThrow(() -> new ResourceNotFoundException("Share not found"));
+        requirePageManager(share.getPage(), requesterId);
         pageShareRepository.delete(share);
+    }
+
+    private void requirePageManager(Page page, String userId) {
+        boolean author = page.getUser() != null && userId.equals(page.getUser().getId());
+        boolean workspaceOwner = page.getWorkspace() != null && page.getWorkspace().getOwner() != null
+                && userId.equals(page.getWorkspace().getOwner().getId());
+        if (!author && !workspaceOwner) {
+            throw new UnauthorizedException("Only the page owner can manage sharing for this page");
+        }
     }
 }

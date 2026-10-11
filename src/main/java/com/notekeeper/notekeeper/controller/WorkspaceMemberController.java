@@ -54,16 +54,32 @@ public class WorkspaceMemberController {
     }
 
     @GetMapping
-    public ResponseEntity<List<WorkspaceMemberDTO>> getWorkspaceMembers(@PathVariable String workspaceId) {
+    public ResponseEntity<List<WorkspaceMemberDTO>> getWorkspaceMembers(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @PathVariable String workspaceId) {
+        // Only people who can see the workspace may see who is in it
+        permissionService.validateWorkspaceAccess(workspaceId, principal.getId(), com.notekeeper.notekeeper.model.WorkspaceRole.VIEWER);
         List<WorkspaceMemberDTO> members = workspaceMemberService.getWorkspaceMembers(workspaceId);
         return ResponseEntity.ok(members);
     }
 
     @GetMapping("/check/{userId}")
     public ResponseEntity<WorkspaceMemberDTO> checkMembership(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
             @PathVariable String workspaceId,
             @PathVariable String userId) {
+        permissionService.validateWorkspaceAccess(workspaceId, principal.getId(), com.notekeeper.notekeeper.model.WorkspaceRole.VIEWER);
         WorkspaceMemberDTO member = workspaceMemberService.getMember(workspaceId, userId);
+        if (member == null) {
+            // The workspace owner may have no member row; still report the real role
+            com.notekeeper.notekeeper.model.WorkspaceRole role = permissionService.getWorkspaceRole(workspaceId, userId);
+            if (role != null) {
+                member = new WorkspaceMemberDTO();
+                member.setWorkspaceId(workspaceId);
+                member.setUserId(userId);
+                member.setRole(role.name());
+            }
+        }
         return ResponseEntity.ok(member);
     }
 }

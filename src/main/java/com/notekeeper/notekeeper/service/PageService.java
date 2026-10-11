@@ -5,6 +5,7 @@ import com.notekeeper.notekeeper.model.Page;
 import com.notekeeper.notekeeper.model.User;
 import com.notekeeper.notekeeper.model.Workspace;
 import com.notekeeper.notekeeper.repository.PageRepository;
+import com.notekeeper.notekeeper.repository.PageViewRepository;
 import com.notekeeper.notekeeper.repository.TagRepository;
 import com.notekeeper.notekeeper.repository.UserRepository;
 import com.notekeeper.notekeeper.repository.WorkspaceRepository;
@@ -34,6 +35,9 @@ public class PageService {
 
     @Autowired
     private PageRevisionRecorder pageRevisionRecorder;
+
+    @Autowired
+    private PageViewRepository pageViewRepository;
 
     // CREATE
     @Transactional
@@ -193,6 +197,7 @@ public class PageService {
         Page page = pageRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Page not found"));
 
+        pageViewRepository.deleteByPageId(id);
         pageRepository.delete(page);
     }
 

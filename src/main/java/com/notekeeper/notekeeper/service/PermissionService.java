@@ -8,6 +8,7 @@ import com.notekeeper.notekeeper.model.WorkspaceMember;
 import com.notekeeper.notekeeper.model.WorkspaceRole;
 import com.notekeeper.notekeeper.repository.PageRepository;
 import com.notekeeper.notekeeper.repository.PageShareRepository;
+import com.notekeeper.notekeeper.repository.UserRepository;
 import com.notekeeper.notekeeper.repository.WorkspaceMemberRepository;
 import com.notekeeper.notekeeper.repository.WorkspaceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,21 @@ public class PermissionService {
     @Autowired
     private WorkspaceRepository workspaceRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    /**
+     * True when the user has the system ADMIN role.
+     */
+    public boolean isAdmin(String userId) {
+        if (userId == null || userRepository == null) {
+            return false;
+        }
+        return userRepository.findById(userId)
+                .map(u -> "ADMIN".equalsIgnoreCase(u.getRole()))
+                .orElse(false);
+    }
+
     /**
      * Validates if a user has permission to access or modify a page.
      * 
@@ -41,12 +57,18 @@ public class PermissionService {
         Page page = pageRepository.findById(pageId)
                 .orElseThrow(() -> new com.notekeeper.notekeeper.exception.ResourceNotFoundException("Page not found"));
 
-        // 1. Owner has full access
+        // 1. Author has full access
         if (page.getUser().getId().equals(userId)) {
             return;
         }
 
-        // 2. Check direct page shares
+        // 2. The owner of the workspace the page lives in has full access
+        if (page.getWorkspace() != null && page.getWorkspace().getOwner() != null
+                && userId.equals(page.getWorkspace().getOwner().getId())) {
+            return;
+        }
+
+        // 3. Check direct page shares
         PageShare share = pageShareRepository.findByPageIdAndSharedWithId(pageId, userId).orElse(null);
         if (share != null) {
             if ("READ".equals(requiredPermission))
@@ -55,7 +77,7 @@ public class PermissionService {
                 return;
         }
 
-        // 3. Check workspace membership
+        // 4. Check workspace membership
         if (page.getWorkspace() != null) {
             WorkspaceMember member = workspaceMemberRepository
                     .findByWorkspaceIdAndUserId(page.getWorkspace().getId(), userId).orElse(null);
@@ -68,6 +90,11 @@ public class PermissionService {
             }
         }
 
+        // 5. System admins may read any page (moderation); they cannot edit others' pages
+        if ("READ".equals(requiredPermission) && isAdmin(userId)) {
+            return;
+        }
+
         throw new UnauthorizedException(
                 "You do not have permission to " + requiredPermission.toLowerCase() + " this page");
     }
@@ -75,6 +102,7 @@ public class PermissionService {
     /**
      * Validates if a user can manage a workspace.
      * Allows workspace owner (from Workspace entity) or members with required role.
+     * System admins may view (VIEWER level) any workspace.
      */
     public void validateWorkspaceAccess(String workspaceId, String userId, WorkspaceRole requiredRole) {
         // First check if user is the workspace owner
@@ -85,11 +113,32 @@ public class PermissionService {
 
         // Then check membership
         WorkspaceMember member = workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, userId)
-                .orElseThrow(() -> new UnauthorizedException("You are not a member of this workspace"));
+                .orElse(null);
+
+        if (member == null) {
+            if (requiredRole == WorkspaceRole.VIEWER && isAdmin(userId)) {
+                return;
+            }
+            throw new UnauthorizedException("You are not a member of this workspace");
+        }
 
         if (getRoleLevel(member.getRole()) < getRoleLevel(requiredRole)) {
             throw new UnauthorizedException("Insufficient workspace permissions");
         }
+    }
+
+    /**
+     * Returns the effective role of the user in a workspace (OWNER, EDITOR, VIEWER),
+     * or null when the user has no access.
+     */
+    public WorkspaceRole getWorkspaceRole(String workspaceId, String userId) {
+        Optional<Workspace> workspaceOpt = workspaceRepository.findById(workspaceId);
+        if (workspaceOpt.isPresent() && workspaceOpt.get().getOwner().getId().equals(userId)) {
+            return WorkspaceRole.OWNER;
+        }
+        return workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, userId)
+                .map(WorkspaceMember::getRole)
+                .orElse(null);
     }
 
     private int getRoleLevel(WorkspaceRole role) {
@@ -105,4 +154,3 @@ public class PermissionService {
         }
     }
 }
-

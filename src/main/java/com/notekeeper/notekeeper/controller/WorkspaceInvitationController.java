@@ -43,6 +43,9 @@ public class WorkspaceInvitationController {
     private PermissionService permissionService;
 
     @Autowired
+    private com.notekeeper.notekeeper.messaging.OutboundMessageService outboundMessageService;
+
+    @Autowired
     private DTOMapper dtoMapper;
 
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -110,6 +113,16 @@ public class WorkspaceInvitationController {
         invitation.setIsRead(false);
 
         notificationRepository.save(invitation);
+
+        // Also reach the invitee by email / SMS / event queue, not only the bell icon
+        outboundMessageService.sendInvitationEmail(
+                invitedUser.getEmail(), inviter.getFullName(), workspace.getName(), role);
+        outboundMessageService.sendSms(
+                invitedUser.getPhoneNumber(),
+                inviter.getFullName() + " invited you to \"" + workspace.getName() + "\" as " + role.toLowerCase());
+        outboundMessageService.publishAppEvent(
+                "workspace-invited",
+                "workspaceId=" + workspaceId + ",userId=" + invitedUser.getId() + ",role=" + role);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("message", "Invitation sent successfully"));

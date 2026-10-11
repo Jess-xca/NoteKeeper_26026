@@ -1,6 +1,7 @@
 package com.notekeeper.notekeeper.controller;
 
 import com.notekeeper.notekeeper.dto.PageDTO;
+import com.notekeeper.notekeeper.dto.PageListItemDTO;
 import com.notekeeper.notekeeper.mapper.DTOMapper;
 import com.notekeeper.notekeeper.model.Page;
 import com.notekeeper.notekeeper.service.PageService;
@@ -33,11 +34,24 @@ public class PageController {
     private DTOMapper dtoMapper;
 
     @Autowired
+    private com.notekeeper.notekeeper.service.PageActivityService pageActivityService;
+
+    @Autowired
     private com.notekeeper.notekeeper.service.PermissionService permissionService;
 
     // CREATE
     @PostMapping
-    public ResponseEntity<PageDTO> createPage(@RequestBody Page page) {
+    public ResponseEntity<PageDTO> createPage(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @RequestBody Page page) {
+        if (page.getWorkspace() == null || page.getWorkspace().getId() == null) {
+            throw new com.notekeeper.notekeeper.exception.BadRequestException("A workspace is required to create a page");
+        }
+        // Only editors and owners of the workspace may add pages to it
+        permissionService.validateWorkspaceAccess(page.getWorkspace().getId(), principal.getId(),
+                com.notekeeper.notekeeper.model.WorkspaceRole.EDITOR);
+        // The author is always the signed-in user, never what the client sends
+        page.setUser(principal.getUser());
         String resultId = pageService.createPage(page);
         Page createdPage = pageService.getPageById(resultId);
         return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toPageDTO(createdPage));
@@ -69,9 +83,38 @@ public class PageController {
             @PathVariable String id) {
         permissionService.validatePageAccess(id, principal.getId(), "READ");
         Page page = pageService.getPageById(id);
+        pageActivityService.recordView(principal.getId(), id);
         return ResponseEntity.ok(dtoMapper.toPageDTO(page));
     }
 
+    // Pages other people shared with me (from workspaces I was invited to, not my own)
+    @GetMapping("/shared-with-me")
+    public ResponseEntity<List<PageListItemDTO>> getSharedWithMe(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal) {
+        return ResponseEntity.ok(pageActivityService.getSharedWithMe(principal.getId()));
+    }
+
+    @GetMapping("/shared-with-me/count")
+    public ResponseEntity<Long> countSharedWithMe(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal) {
+        return ResponseEntity.ok(pageActivityService.countSharedWithMe(principal.getId()));
+    }
+
+    // Pages I opened recently, newest first
+    @GetMapping("/recent-history")
+    public ResponseEntity<List<PageListItemDTO>> getRecentHistory(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal) {
+        return ResponseEntity.ok(pageActivityService.getRecentHistory(principal.getId()));
+    }
+
+    @DeleteMapping("/recent-history")
+    public ResponseEntity<Map<String, String>> clearRecentHistory(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal) {
+        pageActivityService.clearHistory(principal.getId());
+        return ResponseEntity.ok(Map.of("message", "History cleared"));
+    }
+
+    // Admin only (see SecurityConfig): every page in the system
     @GetMapping
     public ResponseEntity<List<PageDTO>> getAllPages() {
         List<Page> pages = pageService.getAllPages();
@@ -91,7 +134,11 @@ public class PageController {
     }
 
     @GetMapping("/workspace/{workspaceId}")
-    public ResponseEntity<List<PageDTO>> getPagesByWorkspace(@PathVariable String workspaceId) {
+    public ResponseEntity<List<PageDTO>> getPagesByWorkspace(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @PathVariable String workspaceId) {
+        permissionService.validateWorkspaceAccess(workspaceId, principal.getId(),
+                com.notekeeper.notekeeper.model.WorkspaceRole.VIEWER);
         List<Page> pages = pageService.getPagesByWorkspace(workspaceId);
         List<PageDTO> pageDTOs = pages.stream()
                 .map(dtoMapper::toPageDTO)
@@ -205,7 +252,7 @@ public class PageController {
         // Only owner can delete for now, or use "owner" check in validatePageAccess if we want to allow editors to delete?
         // Let's assume only owner or workspace OWNER can delete.
         Page page = pageService.getPageById(id);
-        if (!page.getUser().getId().equals(principal.getId())) {
+        if (!page.getUser().getId().equals(principal.getId()) && !permissionService.isAdmin(principal.getId())) {
              // Check if it's in a workspace and user is OWNER of that workspace
              if (page.getWorkspace() != null) {
                  permissionService.validateWorkspaceAccess(page.getWorkspace().getId(), principal.getId(), com.notekeeper.notekeeper.model.WorkspaceRole.OWNER);

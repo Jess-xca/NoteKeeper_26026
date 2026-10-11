@@ -64,6 +64,12 @@ public interface PageRepository extends JpaRepository<Page, String> {
         @Query("SELECT DISTINCT p FROM Page p JOIN p.pageTags pt WHERE pt.tag.id = :tagId AND p.isArchived = false")
         List<Page> findPagesByTagId(@Param("tagId") String tagId);
 
+        // Pages in workspaces the user belongs to but does not own (Shared with me)
+        @Query("SELECT p FROM Page p WHERE p.isArchived = false AND p.workspace.owner.id <> :userId " +
+                        "AND p.workspace.id IN (SELECT wm.workspace.id FROM WorkspaceMember wm WHERE wm.user.id = :userId) " +
+                        "ORDER BY p.updatedAt DESC")
+        List<Page> findSharedWithUser(@Param("userId") String userId);
+
         // Count queries
         long countByUserId(String userId);
 
