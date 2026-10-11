@@ -25,8 +25,22 @@ public class UserController {
     @Autowired
     private DTOMapper dtoMapper;
 
+    @Autowired
+    private com.notekeeper.notekeeper.service.SystemSettingService systemSettingService;
+
     @PostMapping
-    public ResponseEntity<UserDTO> createUser(@RequestBody UserDTO userDTO) {
+    public ResponseEntity<UserDTO> createUser(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.notekeeper.notekeeper.security.UserPrincipal principal,
+            @RequestBody UserDTO userDTO) {
+        boolean callerIsAdmin = principal != null && "ADMIN".equalsIgnoreCase(principal.getUser().getRole());
+        if (!callerIsAdmin) {
+            // Public sign-up: obey the registration switch and never let the caller choose their own role
+            if (!systemSettingService.isRegistrationAllowed()) {
+                throw new com.notekeeper.notekeeper.exception.BadRequestException(
+                        "New registrations are currently disabled by the administrator");
+            }
+            userDTO.setRole(systemSettingService.getDefaultRole());
+        }
         UserDTO created = userService.createUser(userDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }

@@ -66,6 +66,9 @@ public class AuthController {
     @Autowired
     private com.notekeeper.notekeeper.service.UserService userService;
 
+    @Autowired
+    private com.notekeeper.notekeeper.service.SystemSettingService systemSettingService;
+
     @Value("${google.client.id}")
     private String googleClientId;
     
@@ -98,14 +101,14 @@ public class AuthController {
             throw new BadRequestException("Invalid username or password");
         }
 
-        // Check if 2FA is enabled - MANDATORY for all users
-        if (user.getTwoFactorEnabled() == null || !user.getTwoFactorEnabled()) {
-            user.setTwoFactorEnabled(true);
-            userRepository.save(user);
-        }
-        boolean requiresTwoFactor = true; 
+        // 2FA is on by default; an administrator can switch it off in system settings
+        boolean requiresTwoFactor = systemSettingService.isTwoFactorRequired();
 
         if (requiresTwoFactor) {
+            if (user.getTwoFactorEnabled() == null || !user.getTwoFactorEnabled()) {
+                user.setTwoFactorEnabled(true);
+                userRepository.save(user);
+            }
             // Delete old codes for this user
             twoFactorCodeRepository.deleteByUserId(user.getId());
             
@@ -145,6 +148,10 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<UserDTO> register(@RequestBody RegisterRequest registerRequest) {
+        if (!systemSettingService.isRegistrationAllowed()) {
+            throw new BadRequestException("New registrations are currently disabled by the administrator");
+        }
+
         // Validate required fields
         if (registerRequest.getUsername() == null || registerRequest.getUsername().trim().isEmpty()) {
             throw new BadRequestException("Username is required");
@@ -177,7 +184,7 @@ public class AuthController {
         user.setLastName(registerRequest.getLastName());
         user.setPhoneNumber(registerRequest.getPhoneNumber());
         user.setGender(registerRequest.getGender());
-        user.setRole("USER"); // Default role
+        user.setRole(systemSettingService.getDefaultRole()); // Default role chosen by the admin
 
         // Parse and set date of birth if provided
         if (registerRequest.getDateOfBirth() != null && !registerRequest.getDateOfBirth().trim().isEmpty()) {
@@ -247,13 +254,16 @@ public class AuthController {
 
         // Find or create user
         User user = userRepository.findByEmail(email).orElseGet(() -> {
+            if (!systemSettingService.isRegistrationAllowed()) {
+                throw new BadRequestException("New registrations are currently disabled by the administrator");
+            }
             User newUser = new User();
             newUser.setUsername(email); 
             newUser.setEmail(email);
             newUser.setPassword(passwordEncoder.encode("dummy_password_" + UUID.randomUUID()));
             newUser.setFirstName(firstName != null ? firstName : "Google");
             newUser.setLastName(lastName != null ? lastName : "User");
-            newUser.setRole("USER");
+            newUser.setRole(systemSettingService.getDefaultRole());
             newUser = userRepository.save(newUser);
 
             // Create default assets
@@ -361,13 +371,16 @@ public class AuthController {
             
             // Find or create user
             User user = userRepository.findByEmail(email).orElseGet(() -> {
+                if (!systemSettingService.isRegistrationAllowed()) {
+                    throw new BadRequestException("New registrations are currently disabled by the administrator");
+                }
                 User newUser = new User();
                 newUser.setUsername(email.split("@")[0]);
                 newUser.setEmail(email);
                 newUser.setPassword(passwordEncoder.encode("google_oauth_" + UUID.randomUUID()));
                 newUser.setFirstName(firstName);
                 newUser.setLastName(lastName);
-                newUser.setRole("USER");
+                newUser.setRole(systemSettingService.getDefaultRole());
                 newUser = userRepository.save(newUser);
                 
                 UserProfile profile = new UserProfile(newUser);

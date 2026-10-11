@@ -4,6 +4,7 @@ import com.notekeeper.notekeeper.security.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -48,6 +49,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/users").permitAll()  // Allow user registration
                 .requestMatchers("/api/locations/**").permitAll()  // Allow location lookups
                 .requestMatchers("/api/profiles/**").permitAll()  // Allow profile access (needed during registration)
+                // System-wide lists and settings are for administrators only
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET,
+                        "/api/pages", "/api/pages/paginated", "/api/pages/search",
+                        "/api/workspaces", "/api/workspaces/paginated", "/api/workspaces/search",
+                        "/api/workspaces/count").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session
